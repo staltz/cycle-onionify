@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es5",
+    "declaration": true,
+    "noImplicitAny": false,
+    "noImplicitReturns": true,
+    "strictNullChecks": true,
+    "sourceMap": true,
+    "outDir": "lib/"
+  },
+  "formatCodeOptions": {
+    "indentSize": 2,
+    "tabSize": 2
+  },
+  "files": [
+    "src/index.ts",
+    "typings/index.d.ts"
+  ]
+}
