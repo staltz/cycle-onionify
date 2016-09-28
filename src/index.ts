@@ -23,7 +23,7 @@ export default function onionify<So, Si>(main: MainFn<So, Si>, name: string = 'o
   return function augmentedMain(sources: So): Si {
     const reducerMimic$ = xs.create<Reducer>();
     const state$ = reducerMimic$.fold((state, reducer) => reducer(state), {}).drop(1);
-    sources[name] = new StateSource(state$.remember());
+    sources[name] = new StateSource(state$);
     const sinks = main(sources);
     reducerMimic$.imitate(sinks[name]);
     return sinks;
@@ -33,12 +33,14 @@ export default function onionify<So, Si>(main: MainFn<So, Si>, name: string = 'o
 export class StateSource<T> {
   public state$: MemoryStream<T>;
 
-  constructor(stream: MemoryStream<any>) {
-    this.state$ = stream;
+  constructor(stream: Stream<any>) {
+    this.state$ = stream.remember();
   }
 
   select(scope: string): StateSource<any> {
-    return new StateSource(this.state$.map(state => state[scope]));
+    return new StateSource(
+      this.state$.map(state => state[scope]).filter(s => !!s)
+    );
   }
 
   isolateSource(source: StateSource<any>, scope: string): StateSource<any> {
