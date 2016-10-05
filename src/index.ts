@@ -22,11 +22,22 @@ export type Reducer = (state: any) => any;
 export default function onionify<So, Si>(main: MainFn<So, Si>, name: string = 'onion'): MainFn<So, Si> {
   return function augmentedMain(sources: So): Si {
     const reducerMimic$ = xs.create<Reducer>();
-    const state$ = reducerMimic$.fold((state, reducer) => reducer(state), {}).drop(1);
+    const state$ = reducerMimic$
+      .fold((state, reducer) => reducer(state), {})
+      .drop(1);
     sources[name] = new StateSource(state$);
     const sinks = main(sources);
     reducerMimic$.imitate(sinks[name]);
     return sinks;
+  }
+}
+
+function updateArrayEntry<T>(array: Array<T>, index: number, reducer: Reducer): Array<T> {
+  const newVal = reducer(array[index]);
+  if (typeof newVal === 'undefined') {
+    return array.filter((val, i) => i !== index);
+  } else {
+    return array.map((val, i) => i === index ? newVal : val);
   }
 }
 
@@ -49,7 +60,12 @@ export class StateSource<T> {
 
   isolateSink(reducer$: Stream<Reducer>, scope: string): Stream<Reducer> {
     return reducer$.map(reducer => function (state: any) {
-      return objectExtend(state, {[scope]: reducer(state[scope])});
+      const index = parseInt(scope);
+      if (Array.isArray(state) && typeof index === 'number') {
+        return updateArrayEntry(state, index, reducer);
+      } else {
+        return objectExtend(state, {[scope]: reducer(state[scope])});
+      }
     });
   }
 }
