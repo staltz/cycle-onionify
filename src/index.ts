@@ -18,17 +18,26 @@ function objectExtend<T>(oldObj: T, newObj: T): T {
 
 export type MainFn<Sources, Sinks> = (sources: Sources) => Sinks;
 export type Reducer = (state: any) => any;
+export type Selector = (state: any) => any;
+export type Aggregator = (...streams: Array<Stream<any>>) => Stream<any>;
 
-export default function onionify<So, Si>(main: MainFn<So, Si>, name: string = 'onion'): MainFn<So, Si> {
-  return function augmentedMain(sources: So): Si {
-    const reducerMimic$ = xs.create<Reducer>();
-    const state$ = reducerMimic$
-      .fold((state, reducer) => reducer(state), {})
-      .drop(1);
-    sources[name] = new StateSource(state$);
-    const sinks = main(sources);
-    reducerMimic$.imitate(sinks[name]);
-    return sinks;
+export function pick(selector: Selector | string) {
+  if (typeof selector === 'string') {
+    return function pickWithString(sinksArray$: Stream<Array<any>>): Stream<Array<any>> {
+      return sinksArray$.map(sinksArray => sinksArray.map(sinks => sinks[selector]));
+    };
+  } else {
+    return function pickWithFunction(sinksArray$: Stream<Array<any>>): Stream<Array<any>> {
+      return sinksArray$.map(sinksArray => sinksArray.map(selector));
+    };
+  }
+}
+
+export function mix(aggregator: Aggregator) {
+  return function mixOperator(streamArray$: Stream<Array<Stream<any>>>): Stream<any> {
+    return streamArray$
+      .map(streamArray => aggregator(...streamArray))
+      .flatten();
   }
 }
 
@@ -67,5 +76,18 @@ export class StateSource<T> {
         return objectExtend(state, {[scope]: reducer(state[scope])});
       }
     });
+  }
+}
+
+export default function onionify<So, Si>(main: MainFn<So, Si>, name: string = 'onion'): MainFn<So, Si> {
+  return function augmentedMain(sources: So): Si {
+    const reducerMimic$ = xs.create<Reducer>();
+    const state$ = reducerMimic$
+      .fold((state, reducer) => reducer(state), {})
+      .drop(1);
+    sources[name] = new StateSource(state$);
+    const sinks = main(sources);
+    reducerMimic$.imitate(sinks[name]);
+    return sinks;
   }
 }
