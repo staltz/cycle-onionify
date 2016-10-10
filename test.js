@@ -118,6 +118,118 @@ test('reducers receive previous state', t => {
   wrapped({});
 });
 
+test('top level default reducer sees undefined prev state', t => {
+  t.plan(4);
+
+  function main(sources) {
+    t.truthy(sources.onion);
+    t.truthy(sources.onion.state$);
+    sources.onion.state$.addListener({
+      next(x) { t.is(x.foo, 'bar'); },
+      error(e) { t.fail(e); },
+      complete() {},
+    });
+
+    return {
+      onion: xs.of(function defaultReducer(prevState) {
+        t.is(typeof prevState, 'undefined');
+        if (typeof prevState === 'undefined') {
+          return {foo: 'bar'};
+        } else {
+          return prevState;
+        }
+      }),
+    };
+  }
+
+  const wrapped = onionify(main);
+  wrapped({});
+});
+
+test('child component default reducer can get state from parent', t => {
+  t.plan(4);
+
+  function child(sources) {
+    t.truthy(sources.onion);
+    t.truthy(sources.onion.state$);
+    const expected = [7, 7];
+    sources.onion.state$.addListener({
+      next(x) { t.is(x.count, expected.shift()); },
+      error(e) { t.fail(e); },
+      complete() {},
+    });
+    const reducer$ = xs.of(function defaultReducer(prevState) {
+      if (typeof prevState === 'undefined') {
+        return {count: 0};
+      } else {
+        return prevState;
+      }
+    });
+    return {
+      onion: reducer$,
+    };
+  }
+
+  function main(sources) {
+    const childSinks = isolate(child, 'child')(sources);
+    const childReducer$ = childSinks.onion;
+
+    const parentReducer$ = xs.of(function initReducer(prevState) {
+      return { child: { count: 7 } };
+    });
+    const reducer$ = xs.merge(parentReducer$, childReducer$);
+
+    return {
+      onion: reducer$,
+    };
+  }
+
+  const wrapped = onionify(main);
+  wrapped({});
+});
+
+test('child component default reducer can set default state', t => {
+  t.plan(3);
+
+  function child(sources) {
+    t.truthy(sources.onion);
+    t.truthy(sources.onion.state$);
+    const expected = [0];
+    sources.onion.state$.addListener({
+      next(x) { t.is(x.count, expected.shift()); },
+      error(e) { t.fail(e); },
+      complete() {},
+    });
+    const reducer$ = xs.of(function defaultReducer(prevState) {
+      if (typeof prevState === 'undefined') {
+        return {count: 0};
+      } else {
+        return prevState;
+      }
+    });
+    return {
+      onion: reducer$,
+    };
+  }
+
+  function main(sources) {
+    const childSinks = isolate(child, 'child')(sources);
+    const childReducer$ = childSinks.onion;
+
+    const parentReducer$ = xs.of(function initReducer(prevState) {
+      return { };
+    });
+    const reducer$ = xs.merge(parentReducer$, childReducer$);
+
+    return {
+      onion: reducer$,
+    };
+  }
+
+  const wrapped = onionify(main);
+  wrapped({});
+});
+
 test('pick operator works with string argument', t => {
   t.plan(3);
 

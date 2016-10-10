@@ -83,7 +83,7 @@ export default function onionify<So, Si>(main: MainFn<So, Si>, name: string = 'o
   return function augmentedMain(sources: So): Si {
     const reducerMimic$ = xs.create<Reducer>();
     const state$ = reducerMimic$
-      .fold((state, reducer) => reducer(state), {})
+      .fold((state, reducer) => reducer(state), void 0)
       .drop(1);
     sources[name] = new StateSource(state$);
     const sinks = main(sources);
