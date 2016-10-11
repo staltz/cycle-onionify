@@ -230,6 +230,43 @@ test('child component default reducer can set default state', t => {
   wrapped({});
 });
 
+test('child component also gets undefined if parent has not initialized state', t => {
+  t.plan(1);
+
+  function child(sources) {
+    const expected = [0];
+    sources.onion.state$.addListener({
+      next(x) { t.is(x.count, expected.shift()); },
+      error(e) { t.fail(e); },
+      complete() {},
+    });
+    const reducer$ = xs.of(function defaultReducer(prevState) {
+      if (typeof prevState === 'undefined') {
+        return {count: 0};
+      } else {
+        return prevState;
+      }
+    });
+    return {
+      onion: reducer$,
+    };
+  }
+
+  function main(sources) {
+    const childSinks = isolate(child, 'child')(sources);
+    const childReducer$ = childSinks.onion;
+
+    const reducer$ = childReducer$;
+
+    return {
+      onion: reducer$,
+    };
+  }
+
+  const wrapped = onionify(main);
+  wrapped({});
+});
+
 test('pick operator works with string argument', t => {
   t.plan(3);
 

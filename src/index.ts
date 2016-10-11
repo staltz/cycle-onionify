@@ -56,6 +56,8 @@ export class StateSource<T> {
       const index = parseInt(scope);
       if (Array.isArray(state) && typeof index === 'number') {
         return updateArrayEntry(state, index, reducer);
+      } else if (typeof state === 'undefined') {
+        return {[scope]: reducer(void 0)};
       } else {
         return Object.assign({}, state, {[scope]: reducer(state[scope])});
       }
