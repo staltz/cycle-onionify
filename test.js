@@ -1,7 +1,7 @@
 import test from 'ava';
 import xs from 'xstream';
 import isolate from '@cycle/isolate';
-import onionify, {pick, mix} from './lib/index';
+import onionify, {pick, mix, isolateSource, isolateSink} from './lib/index';
 
 test('returns a wrapped main function', t => {
   function main() { return {}; }
@@ -342,6 +342,52 @@ test('pick and mix operators work together', t => {
     error(e) { t.fail(e); },
     complete() {},
   });
+});
+
+test('should work with a manually isolated child component', t => {
+  t.plan(7);
+
+  function child(sources) {
+    t.truthy(sources.onion);
+    t.truthy(sources.onion.state$);
+    const expected = [7, 9];
+    sources.onion.state$.addListener({
+      next(x) { t.is(x.count, expected.shift()); },
+      error(e) { t.fail(e); },
+      complete() {},
+    });
+    const reducer$ = xs.of(
+      prevState => ({count: prevState.count + 2}),
+    );
+    return {
+      onion: reducer$,
+    };
+  }
+
+  function main(sources) {
+    const expected = [7, 9];
+    sources.onion.state$.addListener({
+      next(x) { t.is(x.child.count, expected.shift()); },
+      error(e) { t.fail(e); },
+      complete() {},
+    });
+
+    const childSinks = child({onion: isolateSource(sources.onion, 'child')});
+    t.truthy(childSinks.onion);
+    const childReducer$ = isolateSink(childSinks.onion, 'child');
+
+    const parentReducer$ = xs.of(function initReducer(prevState) {
+      return { child: { count: 7 } };
+    });
+    const reducer$ = xs.merge(parentReducer$, childReducer$);
+
+    return {
+      onion: reducer$,
+    };
+  }
+
+  const wrapped = onionify(main);
+  wrapped({});
 });
 
 test('should work with an isolated child component', t => {

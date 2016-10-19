@@ -34,6 +34,23 @@ function updateArrayEntry<T>(array: Array<T>, index: number, reducer: Reducer): 
   }
 }
 
+export function isolateSource(source: StateSource<any>, scope: string): StateSource<any> {
+  return source.select(scope);
+}
+
+export function isolateSink(reducer$: Stream<Reducer>, scope: string): Stream<Reducer> {
+  return reducer$.map(reducer => function (state: any) {
+    const index = parseInt(scope);
+    if (Array.isArray(state) && typeof index === 'number') {
+      return updateArrayEntry(state, index, reducer);
+    } else if (typeof state === 'undefined') {
+      return {[scope]: reducer(void 0)};
+    } else {
+      return Object.assign({}, state, {[scope]: reducer(state[scope])});
+    }
+  });
+}
+
 export class StateSource<T> {
   public state$: MemoryStream<T>;
 
@@ -41,28 +58,14 @@ export class StateSource<T> {
     this.state$ = stream.remember();
   }
 
-  select(scope: string): StateSource<any> {
+  public select(scope: string): StateSource<any> {
     return new StateSource(
       this.state$.map(state => state[scope]).filter(s => !!s)
     );
   }
 
-  isolateSource(source: StateSource<any>, scope: string): StateSource<any> {
-    return source.select(scope);
-  }
-
-  isolateSink(reducer$: Stream<Reducer>, scope: string): Stream<Reducer> {
-    return reducer$.map(reducer => function (state: any) {
-      const index = parseInt(scope);
-      if (Array.isArray(state) && typeof index === 'number') {
-        return updateArrayEntry(state, index, reducer);
-      } else if (typeof state === 'undefined') {
-        return {[scope]: reducer(void 0)};
-      } else {
-        return Object.assign({}, state, {[scope]: reducer(state[scope])});
-      }
-    });
-  }
+  public isolateSource: (source: StateSource<any>, scope: string) => StateSource<any> = isolateSource;
+  public isolateSink: (reducer$: Stream<Reducer>, scope: string) => Stream<Reducer> = isolateSink;
 }
 
 export default function onionify<So, Si>(main: MainFn<So, Si>, name: string = 'onion'): MainFn<So, Si> {
