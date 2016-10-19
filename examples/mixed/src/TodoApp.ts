@@ -2,7 +2,7 @@ import xs, {Stream} from 'xstream';
 import isolate from '@cycle/isolate';
 import {div, span, input, button, ul, VNode} from '@cycle/dom';
 import {DOMSource} from '@cycle/dom/xstream-typings';
-import {StateSource, pick, mix} from 'cycle-onionify';
+import {StateSource, pick, mix, isolateSink as isolateOnionSink} from 'cycle-onionify';
 import Counter, {Sources as CounterSources, State as CounterState} from './Counter';
 import List, {Sources as ListSources, State as ListState} from './List';
 
@@ -82,7 +82,7 @@ export default function TodoApp(sources: Sources): Sinks {
   const parentReducer$ = model(action$);
   const listReducer$ = listSinks.onion as any as Stream<Reducer>;
   const counterReducer$ = counterSinks.onion as any as Stream<Reducer>;
-  const otherCounterReducer$ = sources.onion.isolateSink(listSinks.counterOnion, 'counter');
+  const otherCounterReducer$ = isolateOnionSink(listSinks.counterOnion, 'counter');
   const reducer$ = xs.merge(
     parentReducer$,
     listReducer$,

@@ -9,7 +9,7 @@
     "@cycle/dom": "12.2.x",
     "@cycle/isolate": "1.4.x",
     "@types/es6-shim": "^0.31.32",
-    "cycle-onionify": "1.2.2",
+    "cycle-onionify": "1.3.0",
     "xstream": "6.4.x"
   },
   "devDependencies": {
