@@ -1,3 +1,4 @@
+import {DevToolEnabledSource} from '@cycle/base';
 import xs, {Stream, MemoryStream} from 'xstream';
 
 export type MainFn<Sources, Sinks> = (sources: Sources) => Sinks;
@@ -53,14 +54,20 @@ export function isolateSink(reducer$: Stream<Reducer>, scope: string): Stream<Re
 
 export class StateSource<T> {
   public state$: MemoryStream<T>;
+  private _name: string | null;
 
-  constructor(stream: Stream<any>) {
+  constructor(stream: Stream<any>, name: string | null) {
+    this._name = name;
     this.state$ = stream.remember();
+    if (!name) {
+      return;
+    }
+    (this.state$ as MemoryStream<T> & DevToolEnabledSource)._isCycleSource = name;
   }
 
   public select(scope: string): StateSource<any> {
     return new StateSource(
-      this.state$.map(state => state[scope]).filter(s => !!s)
+      this.state$.map(state => state[scope]).filter(s => !!s), null
     );
   }
 
@@ -68,13 +75,14 @@ export class StateSource<T> {
   public isolateSink: (reducer$: Stream<Reducer>, scope: string) => Stream<Reducer> = isolateSink;
 }
 
-export default function onionify<So, Si>(main: MainFn<So, Si>, name: string = 'onion'): MainFn<So, Si> {
+export default function onionify<So, Si>(main: MainFn<So, Si>,
+                                         name: string = 'onion'): MainFn<So, Si> {
   return function augmentedMain(sources: So): Si {
     const reducerMimic$ = xs.create<Reducer>();
     const state$ = reducerMimic$
       .fold((state, reducer) => reducer(state), void 0)
       .drop(1);
-    sources[name] = new StateSource(state$);
+    sources[name] = new StateSource(state$, name);
     const sinks = main(sources);
     reducerMimic$.imitate(sinks[name]);
     return sinks;
