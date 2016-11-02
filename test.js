@@ -147,12 +147,12 @@ test('top level default reducer sees undefined prev state', t => {
 });
 
 test('child component default reducer can get state from parent', t => {
-  t.plan(4);
+  t.plan(3);
 
   function child(sources) {
     t.truthy(sources.onion);
     t.truthy(sources.onion.state$);
-    const expected = [7, 7];
+    const expected = [7];
     sources.onion.state$.addListener({
       next(x) { t.is(x.count, expected.shift()); },
       error(e) { t.fail(e); },
@@ -532,5 +532,71 @@ test('should work with an isolated child component on an array entry', t => {
   }
 
   const wrapped = onionify(main);
+  wrapped({});
+});
+
+test('should work with an isolated list child with a default reducer', t => {
+  let asserts = 0;
+
+  function Child(sources) {
+    const defaultReducer$ = xs.of(prev => {
+      if (prev) {
+        return prev;
+      } else {
+        return 10;
+      }
+    });
+    return {
+      onion: defaultReducer$,
+    };
+  }
+
+  function List(sources) {
+    const array$ = sources.onion.state$;
+    const childSinks$ = array$.map(array =>
+      array.map((item, i) => isolate(Child, i)(sources))
+    );
+    const reducer$ = childSinks$
+      .compose(pick(sinks => sinks.onion))
+      .compose(mix(xs.merge));
+     return {
+       onion: reducer$,
+     }
+  }
+
+  function Main(sources) {
+    const expected = [[3], [3, null], [3,10], [3,10,null], [3,10,10]];
+    sources.onion.state$.addListener({
+      next(x) {
+        t.deepEqual(x.list, expected.shift());
+        asserts += 1;
+        if (expected.length === 0) {
+          t.is(asserts, 5);
+          t.pass();
+        }
+      },
+      error(e) { t.fail(e.message); },
+      complete() { },
+    });
+
+    const childSinks = isolate(List, 'list')(sources);
+    const childReducer$ = childSinks.onion;
+
+    const initReducer$ = xs.of(function initReducer(prevState) {
+      return { list: [3] };
+    });
+    const addReducer$ = xs.periodic(100).take(2)
+      .mapTo(function addReducer(prev) {
+        return {list: prev.list.concat([null])};
+      });
+    const parentReducer$ = xs.merge(initReducer$, addReducer$)
+    const reducer$ = xs.merge(parentReducer$, childReducer$);
+
+    return {
+      onion: reducer$,
+    };
+  }
+
+  const wrapped = onionify(Main);
   wrapped({});
 });

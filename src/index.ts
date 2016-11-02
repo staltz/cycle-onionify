@@ -1,5 +1,6 @@
 import {DevToolEnabledSource} from '@cycle/base';
 import xs, {Stream, MemoryStream} from 'xstream';
+import dropRepeats from 'xstream/extra/dropRepeats';
 
 export type MainFn<Sources, Sinks> = (sources: Sources) => Sinks;
 export type Reducer = (state: any) => any;
@@ -30,6 +31,8 @@ function updateArrayEntry<T>(array: Array<T>, index: number, reducer: Reducer): 
   const newVal = reducer(array[index]);
   if (typeof newVal === 'undefined') {
     return array.filter((val, i) => i !== index);
+  } else if (newVal === array[index]) {
+    return array;
   } else {
     return array.map((val, i) => i === index ? newVal : val);
   }
@@ -47,7 +50,13 @@ export function isolateSink(reducer$: Stream<Reducer>, scope: string): Stream<Re
     } else if (typeof state === 'undefined') {
       return {[scope]: reducer(void 0)};
     } else {
-      return Object.assign({}, state, {[scope]: reducer(state[scope])});
+      const prevPiece = state[scope];
+      const nextPiece = reducer(prevPiece);
+      if (prevPiece === nextPiece) {
+        return state;
+      } else {
+        return Object.assign({}, state, {[scope]: nextPiece});
+      }
     }
   });
 }
@@ -81,7 +90,8 @@ export default function onionify<So, Si>(main: MainFn<So, Si>,
     const reducerMimic$ = xs.create<Reducer>();
     const state$ = reducerMimic$
       .fold((state, reducer) => reducer(state), void 0)
-      .drop(1);
+      .drop(1)
+      .compose(dropRepeats());
     sources[name] = new StateSource(state$, name);
     const sinks = main(sources);
     reducerMimic$.imitate(sinks[name]);

@@ -8,7 +8,7 @@
   "typings": "lib/index.d.ts",
   "scripts": {
     "pretest": "npm run lib",
-    "test": "ava",
+    "test": "ava --timeout=1000",
     "prelib": "mkdir -p lib && typings install",
     "lib": "tsc",
     "prepublish": "npm run lib"
