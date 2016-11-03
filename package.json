@@ -14,7 +14,7 @@
     "prepublish": "npm run lib"
   },
   "dependencies": {
-    "xstream": "6.x.x"
+    "xstream": "6 - 7"
   },
   "devDependencies": {
     "@cycle/base": "4.1",
