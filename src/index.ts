@@ -76,7 +76,8 @@ export class StateSource<T> {
 
   public select(scope: string): StateSource<any> {
     return new StateSource(
-      this.state$.map(state => state[scope]).filter(s => !!s), null
+      this.state$.map(s => s[scope]).filter(s => typeof s !== 'undefined'),
+      null,
     );
   }
 
