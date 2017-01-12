@@ -438,6 +438,55 @@ test('should work with an isolated child component', t => {
   wrapped({});
 });
 
+test('should work with an isolated child component and falsy values', t => {
+  t.plan(11);
+
+  function child(sources) {
+    t.truthy(sources.onion);
+    t.truthy(sources.onion.state$);
+    const expected = [1, 0, -1];
+    sources.onion.state$.addListener({
+      next(x) { t.is(x, expected.shift()); },
+      error(e) { t.fail(e); },
+      complete() {},
+    });
+    const reducer$ = xs.of(
+      prevCount => prevCount - 1,
+      prevCount => prevCount - 1,
+    );
+    return {
+      onion: reducer$,
+    };
+  }
+
+  function main(sources) {
+    t.truthy(sources.onion);
+    t.truthy(sources.onion.state$);
+    const expected = [1, 0, -1];
+    sources.onion.state$.addListener({
+      next(x) { t.is(x.count, expected.shift()); },
+      error(e) { t.fail(e); },
+      complete() {},
+    });
+
+    const childSinks = isolate(child, 'count')(sources);
+    t.truthy(childSinks.onion);
+    const childReducer$ = childSinks.onion;
+
+    const parentReducer$ = xs.of(function initReducer(prevState) {
+      return { count: 1 };
+    });
+    const reducer$ = xs.merge(parentReducer$, childReducer$);
+
+    return {
+      onion: reducer$,
+    };
+  }
+
+  const wrapped = onionify(main);
+  wrapped({});
+});
+
 test('should work with an isolated child component on an array subtree', t => {
   t.plan(9);
 
