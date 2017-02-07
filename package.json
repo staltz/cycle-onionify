@@ -9,18 +9,17 @@
   "scripts": {
     "pretest": "npm run lib",
     "test": "ava --timeout=1000",
-    "prelib": "mkdir -p lib && typings install",
+    "prelib": "mkdir -p lib",
     "lib": "tsc",
     "prepublish": "npm run lib"
   },
   "dependencies": {
-    "xstream": "6 - 9"
+    "xstream": ">=10"
   },
   "devDependencies": {
-    "@cycle/base": "4.1",
-    "@cycle/isolate": "1.4",
-    "ava": "^0.16.0",
-    "typescript": "2.0.9",
-    "typings": "^1.3.3"
+    "@cycle/run": "1.0.0-rc.8",
+    "@cycle/isolate": "2.0.0-rc.1",
+    "ava": "0.18.x",
+    "typescript": "2.1.5"
   }
 }

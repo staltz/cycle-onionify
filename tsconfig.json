@@ -7,14 +7,18 @@
     "noImplicitReturns": true,
     "strictNullChecks": true,
     "sourceMap": true,
-    "outDir": "lib/"
+    "outDir": "lib/",
+    "lib": [
+      "dom",
+      "es5",
+      "es2015"
+    ]
   },
   "formatCodeOptions": {
     "indentSize": 2,
     "tabSize": 2
   },
   "files": [
-    "src/index.ts",
-    "typings/index.d.ts"
+    "src/index.ts"
   ]
 }

@@ -1,8 +1,8 @@
-import {DevToolEnabledSource} from '@cycle/base';
+import {DevToolEnabledSource} from '@cycle/run';
 import xs, {Stream, MemoryStream} from 'xstream';
 import dropRepeats from 'xstream/extra/dropRepeats';
 
-export type MainFn<Sources, Sinks> = (sources: Sources) => Sinks;
+export type MainFn<So, Si> = (sources: So) => Si;
 export type Reducer = (state: any) => any;
 export type Selector = (state: any) => any;
 export type Aggregator = (...streams: Array<Stream<any>>) => Stream<any>;
