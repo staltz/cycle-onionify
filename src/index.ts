@@ -67,7 +67,7 @@ export class StateSource<T> {
 
   constructor(stream: Stream<any>, name: string | null) {
     this._name = name;
-    this.state$ = stream.remember();
+    this.state$ = stream.compose(dropRepeats()).remember();
     if (!name) {
       return;
     }
@@ -91,8 +91,7 @@ export default function onionify<So, Si>(main: MainFn<So, Si>,
     const reducerMimic$ = xs.create<Reducer>();
     const state$ = reducerMimic$
       .fold((state, reducer) => reducer(state), void 0)
-      .drop(1)
-      .compose(dropRepeats());
+      .drop(1);
     sources[name] = new StateSource(state$, name);
     const sinks = main(sources);
     reducerMimic$.imitate(sinks[name]);
