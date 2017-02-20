@@ -1,6 +1,6 @@
 {
   "name": "cycle-onionify",
-  "version": "3.0.0-rc.1",
+  "version": "3.0.0-rc.2",
   "description": "Augments your Cycle.js main function with onion-shaped state management",
   "author": "staltz",
   "license": "MIT",
@@ -17,8 +17,8 @@
     "xstream": ">=10"
   },
   "devDependencies": {
-    "@cycle/run": "1.0.0-rc.8",
-    "@cycle/isolate": "2.0.0-rc.1",
+    "@cycle/run": "1.0.0-rc.9",
+    "@cycle/isolate": "2.0.0-rc.2",
     "ava": "0.18.x",
     "typescript": "2.1.5"
   }
