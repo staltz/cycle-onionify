@@ -1,6 +1,5 @@
 import xs, {Stream, MemoryStream} from 'xstream';
-import {li, span, button, VNode} from '@cycle/dom';
-import {DOMSource} from '@cycle/dom/xstream-typings';
+import {li, span, button, VNode, DOMSource} from '@cycle/dom';
 import {StateSource} from 'cycle-onionify';
 import {State as CounterState, Reducer as CounterReducer} from './Counter';
 

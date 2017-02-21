@@ -1,6 +1,5 @@
 import xs, {Stream} from 'xstream';
-import {div, button, p, makeDOMDriver, VNode} from '@cycle/dom';
-import {DOMSource} from '@cycle/dom/xstream-typings';
+import {div, button, p, makeDOMDriver, VNode, DOMSource} from '@cycle/dom';
 import {StateSource} from 'cycle-onionify';
 
 export interface State {

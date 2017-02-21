@@ -1,5 +1,5 @@
 import xs from 'xstream';
-import Cycle from '@cycle/xstream-run';
+import run from '@cycle/run';
 import {div, button, p, makeDOMDriver} from '@cycle/dom';
 import onionify from '../../../lib/index';
 
@@ -35,6 +35,6 @@ function main(sources) {
 
 const wrappedMain = onionify(main);
 
-Cycle.run(wrappedMain, {
+run(wrappedMain, {
   DOM: makeDOMDriver('#main-container')
 });

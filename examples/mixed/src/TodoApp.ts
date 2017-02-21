@@ -1,7 +1,6 @@
 import xs, {Stream} from 'xstream';
 import isolate from '@cycle/isolate';
-import {div, span, input, button, ul, VNode} from '@cycle/dom';
-import {DOMSource} from '@cycle/dom/xstream-typings';
+import {div, span, input, button, ul, VNode, DOMSource} from '@cycle/dom';
 import {StateSource, pick, mix, isolateSink as isolateOnionSink} from 'cycle-onionify';
 import Counter, {Sources as CounterSources, State as CounterState} from './Counter';
 import List, {Sources as ListSources, State as ListState} from './List';
@@ -54,7 +53,7 @@ function model(action$: Stream<Action>): Stream<Reducer> {
   const addReducer$ = action$
     .filter(ac => ac.type === 'ADD')
     .map(ac => function addReducer(prevState: State): State {
-      return Object.assign(prevState, {
+      return Object.assign({}, prevState, {
         list: prevState.list.concat({content: ac.payload}),
       });
     });

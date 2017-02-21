@@ -1,6 +1,5 @@
 import xs, {Stream, MemoryStream} from 'xstream';
-import {li, span, VNode} from '@cycle/dom';
-import {DOMSource} from '@cycle/dom/xstream-typings';
+import {li, span, VNode, DOMSource} from '@cycle/dom';
 import {StateSource} from 'cycle-onionify';
 
 export interface State {
