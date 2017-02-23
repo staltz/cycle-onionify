@@ -5,9 +5,9 @@
   "author": "Andre Staltz",
   "license": "MIT",
   "dependencies": {
-    "@cycle/run": "1.0.0-rc.9",
-    "@cycle/dom": "15.0.0-rc.4",
-    "@cycle/isolate": "2.0.0-rc.2",
+    "@cycle/run": "1.0.0",
+    "@cycle/dom": "15.0.0",
+    "@cycle/isolate": "2.0.0",
     "@types/es6-shim": "^0.31.32",
     "cycle-onionify": "../..",
     "xstream": "10.2.0"
