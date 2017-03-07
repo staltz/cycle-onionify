@@ -3,7 +3,7 @@ import xs, {Stream, MemoryStream} from 'xstream';
 import dropRepeats from 'xstream/extra/dropRepeats';
 
 export type MainFn<So, Si> = (sources: So) => Si;
-export type Reducer = (state: any) => any;
+export type Reducer<T> = (state: T | undefined) => T | undefined;
 export type Selector = (state: any) => any;
 export type Aggregator = (...streams: Array<Stream<any>>) => Stream<any>;
 
@@ -27,7 +27,7 @@ export function mix(aggregator: Aggregator) {
   }
 }
 
-function updateArrayEntry<T>(array: Array<T>, index: number, reducer: Reducer): Array<T> {
+function updateArrayEntry<T>(array: Array<T>, index: number, reducer: Reducer<T>): Array<T> {
   const newVal = reducer(array[index]);
   if (typeof newVal === 'undefined') {
     return array.filter((val, i) => i !== index);
@@ -38,24 +38,28 @@ function updateArrayEntry<T>(array: Array<T>, index: number, reducer: Reducer): 
   }
 }
 
-export function isolateSource(source: StateSource<any>, scope: string): StateSource<any> {
+export function isolateSource<T, K extends keyof T>(
+                             source: StateSource<T>,
+                             scope: K): StateSource<T[K]> {
   return source.select(scope);
 }
 
-export function isolateSink(reducer$: Stream<Reducer>, scope: string): Stream<Reducer> {
-  return reducer$.map(reducer => function (state: any) {
+export function isolateSink<T, K extends keyof T>(
+                           innerReducer$: Stream<Reducer<T[K]>>,
+                           scope: string): Stream<Reducer<T>> {
+  return innerReducer$.map(innerReducer => function (prevOuter: any) {
     const index = parseInt(scope);
-    if (Array.isArray(state) && typeof index === 'number') {
-      return updateArrayEntry(state, index, reducer);
-    } else if (typeof state === 'undefined') {
-      return {[scope]: reducer(void 0)};
+    if (Array.isArray(prevOuter) && typeof index === 'number') {
+      return updateArrayEntry(prevOuter, index, innerReducer);
+    } else if (typeof prevOuter === 'undefined') {
+      return {[scope]: innerReducer(void 0)};
     } else {
-      const prevPiece = state[scope];
-      const nextPiece = reducer(prevPiece);
-      if (prevPiece === nextPiece) {
-        return state;
+      const prevInner = prevOuter[scope];
+      const nextInner = innerReducer(prevInner);
+      if (prevInner === nextInner) {
+        return prevOuter;
       } else {
-        return Object.assign({}, state, {[scope]: nextPiece});
+        return {...prevOuter, [scope]: nextInner};
       }
     }
   });
@@ -74,26 +78,26 @@ export class StateSource<T> {
     (this.state$ as MemoryStream<T> & DevToolEnabledSource)._isCycleSource = name;
   }
 
-  public select(scope: string): StateSource<any> {
-    return new StateSource(
+  public select<K extends keyof T>(scope: K): StateSource<T[K]> {
+    return new StateSource<T[K]>(
       this.state$.map(s => s[scope]).filter(s => typeof s !== 'undefined'),
       null,
     );
   }
 
-  public isolateSource: (source: StateSource<any>, scope: string) => StateSource<any> = isolateSource;
-  public isolateSink: (reducer$: Stream<Reducer>, scope: string) => Stream<Reducer> = isolateSink;
+  public isolateSource = isolateSource;
+  public isolateSink = isolateSink;
 }
 
 export default function onionify<So, Si>(main: MainFn<So, Si>,
-                                         name: string = 'onion'): MainFn<So, Si> {
-  return function augmentedMain(sources: So): Si {
-    const reducerMimic$ = xs.create<Reducer>();
+                                         name: string = 'onion'): MainFn<Partial<So>, Partial<Si>> {
+  return function augmentedMain(sources: Partial<So>): Partial<Si> {
+    const reducerMimic$ = xs.create<Reducer<any>>();
     const state$ = reducerMimic$
       .fold((state, reducer) => reducer(state), void 0)
       .drop(1);
-    sources[name] = new StateSource(state$, name);
-    const sinks = main(sources);
+    sources[name] = new StateSource<any>(state$, name) as any;
+    const sinks = main(sources as So);
     reducerMimic$.imitate(sinks[name]);
     return sinks;
   }

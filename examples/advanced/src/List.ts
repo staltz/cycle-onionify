@@ -8,12 +8,12 @@ export type State = Array<ItemState>;
 
 export type Reducer = (prev?: State) => State | undefined;
 
-export interface Sources {
+export type Sources = {
   DOM: DOMSource;
   onion: StateSource<State>;
 }
 
-export interface Sinks {
+export type Sinks = {
   DOM: Stream<VNode>;
   onion: Stream<Reducer>;
 }
@@ -22,7 +22,7 @@ export default function List(sources: Sources): Sinks {
   const array$ = sources.onion.state$;
 
   const childrenSinks$ = array$.map(array =>
-    array.map((item, i) => isolate(Item, i)(sources as any as ItemSources))
+    array.map((item, i) => isolate(Item, i)(sources))
   );
 
   const vdom$ = childrenSinks$

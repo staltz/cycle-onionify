@@ -10,12 +10,12 @@ export interface State {
 
 export type Reducer = (prev?: State) => State | undefined;
 
-export interface Sources {
+export type Sources = {
   DOM: DOMSource;
   onion: StateSource<State>;
 }
 
-export interface Sinks {
+export type Sinks = {
   DOM: Stream<VNode>;
   onion: Stream<Reducer>;
 }

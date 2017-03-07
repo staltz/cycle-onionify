@@ -75,13 +75,13 @@ function view(listVNode$: Stream<VNode>, counterVNode$: Stream<VNode>): Stream<V
 }
 
 export default function TodoApp(sources: Sources): Sinks {
-  const listSinks = isolate(List, 'list')(sources as any as ListSources);
-  const counterSinks = isolate(Counter, 'counter')(sources as any as CounterSources);
+  const listSinks: Sinks & {counterOnion: Stream<Reducer>} = isolate(List, 'list')(sources);
+  const counterSinks: Sinks = isolate(Counter, 'counter')(sources);
   const action$ = intent(sources.DOM);
   const parentReducer$ = model(action$);
-  const listReducer$ = listSinks.onion as any as Stream<Reducer>;
-  const counterReducer$ = counterSinks.onion as any as Stream<Reducer>;
-  const otherCounterReducer$ = isolateOnionSink(listSinks.counterOnion, 'counter');
+  const listReducer$ = listSinks.onion;
+  const counterReducer$ = counterSinks.onion;
+  const otherCounterReducer$ = isolateOnionSink<State, any>(listSinks.counterOnion, 'counter');
   const reducer$ = xs.merge(
     parentReducer$,
     listReducer$,
