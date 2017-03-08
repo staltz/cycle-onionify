@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@cycle/run": "3.0.0",
-    "@cycle/isolate": "2.0.0",
+    "@cycle/isolate": "2.1.0",
     "ava": "0.18.x",
     "typescript": "2.2.1"
   }

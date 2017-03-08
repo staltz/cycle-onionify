@@ -4,8 +4,15 @@ import dropRepeats from 'xstream/extra/dropRepeats';
 
 export type MainFn<So, Si> = (sources: So) => Si;
 export type Reducer<T> = (state: T | undefined) => T | undefined;
-export type Selector = (state: any) => any;
+export type Selector = (sinks: any) => any;
 export type Aggregator = (...streams: Array<Stream<any>>) => Stream<any>;
+export type Getter<T, R> = (state: T | undefined) => R | undefined;
+export type Setter<T, R> = (state: T | undefined, childState: R | undefined) => T | undefined;
+export type Lens<T, R> = {
+  get: Getter<T, R>;
+  set: Setter<T, R>;
+}
+export type Scope<T, R> = string | number | Lens<T, R>;
 
 export function pick(selector: Selector | string) {
   if (typeof selector === 'string') {
@@ -27,42 +34,69 @@ export function mix(aggregator: Aggregator) {
   }
 }
 
-function updateArrayEntry<T>(array: Array<T>, index: number, reducer: Reducer<T>): Array<T> {
-  const newVal = reducer(array[index]);
-  if (typeof newVal === 'undefined') {
-    return array.filter((val, i) => i !== index);
-  } else if (newVal === array[index]) {
-    return array;
+function makeGetter<T, R>(scope: Scope<T, R>): Getter<T, R> {
+  if (typeof scope === 'string' || typeof scope === 'number') {
+    return function lensGet(state) {
+      if (typeof state === 'undefined') {
+        return void 0;
+      } else {
+        return state[scope];
+      }
+    };
   } else {
-    return array.map((val, i) => i === index ? newVal : val);
+    return scope.get;
   }
 }
 
-export function isolateSource<T, K extends keyof T>(
+function makeSetter<T, R>(scope: Scope<T, R>): Setter<T, R> {
+  if (typeof scope === 'string' || typeof scope === 'number') {
+    return function lensSet(state: T, childState: R): T {
+      if (Array.isArray(state)) {
+        return updateArrayEntry(state, scope, childState) as any;
+      } else if (typeof state === 'undefined') {
+        return {[scope]: childState} as any as T;
+      } else {
+        return {...(state as any), [scope]: childState};
+      }
+    };
+  } else {
+    return scope.set;
+  }
+}
+
+function updateArrayEntry<T>(array: Array<T>, scope: number | string, newVal: any): Array<T> {
+  if (newVal === array[scope]) {
+    return array;
+  }
+  const index = parseInt(scope as string);
+  if (typeof newVal === 'undefined') {
+    return array.filter((val, i) => i !== index);
+  }
+  return array.map((val, i) => i === index ? newVal : val);
+}
+
+export function isolateSource<T, R>(
                              source: StateSource<T>,
-                             scope: K): StateSource<T[K]> {
+                             scope: Scope<T, R>): StateSource<R> {
   return source.select(scope);
 }
 
-export function isolateSink<T, K extends keyof T>(
-                           innerReducer$: Stream<Reducer<T[K]>>,
-                           scope: string): Stream<Reducer<T>> {
-  return innerReducer$.map(innerReducer => function (prevOuter: any) {
-    const index = parseInt(scope);
-    if (Array.isArray(prevOuter) && typeof index === 'number') {
-      return updateArrayEntry(prevOuter, index, innerReducer);
-    } else if (typeof prevOuter === 'undefined') {
-      return {[scope]: innerReducer(void 0)};
-    } else {
-      const prevInner = prevOuter[scope];
+export function isolateSink<T, R>(
+                           innerReducer$: Stream<Reducer<R>>,
+                           scope: Scope<T, R>): Stream<Reducer<T>> {
+  const get = makeGetter(scope);
+  const set = makeSetter(scope);
+
+  return innerReducer$
+    .map(innerReducer => function outerReducer(outer: T | undefined) {
+      const prevInner = get(outer);
       const nextInner = innerReducer(prevInner);
       if (prevInner === nextInner) {
-        return prevOuter;
+        return outer;
       } else {
-        return {...prevOuter, [scope]: nextInner};
+        return set(outer, nextInner);
       }
-    }
-  });
+    });
 }
 
 export class StateSource<T> {
@@ -78,9 +112,10 @@ export class StateSource<T> {
     (this.state$ as MemoryStream<T> & DevToolEnabledSource)._isCycleSource = name;
   }
 
-  public select<K extends keyof T>(scope: K): StateSource<T[K]> {
-    return new StateSource<T[K]>(
-      this.state$.map(s => s[scope]).filter(s => typeof s !== 'undefined'),
+  public select<R>(scope: Scope<T, R>): StateSource<R> {
+    const get = makeGetter(scope);
+    return new StateSource<R>(
+      this.state$.map(get).filter(s => typeof s !== 'undefined'),
       null,
     );
   }
@@ -89,9 +124,10 @@ export class StateSource<T> {
   public isolateSink = isolateSink;
 }
 
-export default function onionify<So, Si>(main: MainFn<So, Si>,
-                                         name: string = 'onion'): MainFn<Partial<So>, Partial<Si>> {
-  return function augmentedMain(sources: Partial<So>): Partial<Si> {
+export default function onionify<So, Si>(
+                                main: MainFn<So, Si>,
+                                name: string = 'onion'): MainFn<Partial<So>, Partial<Si>> {
+  return function mainOnionified(sources: Partial<So>): Partial<Si> {
     const reducerMimic$ = xs.create<Reducer<any>>();
     const state$ = reducerMimic$
       .fold((state, reducer) => reducer(state), void 0)

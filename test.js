@@ -230,6 +230,66 @@ test('child component default reducer can set default state', t => {
   wrapped({});
 });
 
+test('child component can be isolated with a lens object as scope', t => {
+  t.plan(6);
+
+  function child(sources) {
+    t.truthy(sources.onion);
+    t.truthy(sources.onion.state$);
+    const expected = [27, 37];
+    sources.onion.state$.addListener({
+      next(x) { t.is(x.celsius, expected.shift()); },
+      error(e) { t.fail(e.message); },
+      complete() {},
+    });
+    const reducer$ = xs.of(function increment(prevState) {
+      return {celsius: prevState.celsius + 10};
+    });
+    return {
+      onion: reducer$,
+    };
+  }
+
+  function main(sources) {
+    const celsiusLens = {
+      get: (state) =>
+        ({celsius: (state.deeply.nested.prop.kelvin - 273)}),
+      set: (state, childState) =>
+        ({deeply: {nested: {prop: {kelvin: childState.celsius + 273}}}}),
+    };
+
+    const childSinks = isolate(child, {onion: celsiusLens})(sources);
+    const childReducer$ = childSinks.onion;
+
+    const expected = [300, 310];
+    sources.onion.state$.addListener({
+      next(s) { t.is(s.deeply.nested.prop.kelvin, expected.shift()); },
+      error(e) { t.fail(e.message); },
+      complete() {},
+    });
+
+    const parentReducer$ = xs.of(function initReducer(prevState) {
+      return {
+        deeply: {
+          nested: {
+            prop: {
+              kelvin: 300,
+            }
+          }
+        }
+      };
+    });
+    const reducer$ = xs.merge(parentReducer$, childReducer$);
+
+    return {
+      onion: reducer$,
+    };
+  }
+
+  const wrapped = onionify(main);
+  wrapped({});
+});
+
 test('child component also gets undefined if parent has not initialized state', t => {
   t.plan(1);
 
