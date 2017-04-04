@@ -1,6 +1,7 @@
 import {DevToolEnabledSource} from '@cycle/run';
 import xs, {Stream, MemoryStream} from 'xstream';
 import dropRepeats from 'xstream/extra/dropRepeats';
+import { adapt } from '@cycle/run/lib/adapt';
 
 export type MainFn<So, Si> = (sources: So) => Si;
 export type Reducer<T> = (state: T | undefined) => T | undefined;
@@ -14,23 +15,25 @@ export type Lens<T, R> = {
 }
 export type Scope<T, R> = string | number | Lens<T, R>;
 
-export function pick(selector: Selector | string) {
+export function pick<T>(selector: Selector | string) {
   if (typeof selector === 'string') {
-    return function pickWithString(sinksArray$: Stream<Array<any>>): Stream<Array<any>> {
-      return sinksArray$.map(sinksArray => sinksArray.map(sinks => sinks[selector]));
+    return function pickWithString(sinksArray$: any): T {
+      return adapt((xs.fromObservable(sinksArray$) as Stream<Array<any>>)
+        .map(sinksArray => sinksArray.map(sinks => sinks[selector])));
     };
   } else {
-    return function pickWithFunction(sinksArray$: Stream<Array<any>>): Stream<Array<any>> {
-      return sinksArray$.map(sinksArray => sinksArray.map(selector));
+    return function pickWithFunction(sinksArray$: any): T {
+      return adapt((xs.fromObservable(sinksArray$) as Stream<Array<any>>)
+        .map(sinksArray => sinksArray.map(selector)));
     };
   }
 }
 
-export function mix(aggregator: Aggregator) {
-  return function mixOperator(streamArray$: Stream<Array<Stream<any>>>): Stream<any> {
-    return streamArray$
+export function mix<T>(aggregator: Aggregator) {
+  return function mixOperator(streamArray$: any): T {
+    return adapt((xs.fromObservable(streamArray$) as Stream<Array<Stream<any>>>)
       .map(streamArray => aggregator(...streamArray))
-      .flatten();
+      .flatten());
   }
 }
 
@@ -105,7 +108,7 @@ export class StateSource<T> {
 
   constructor(stream: Stream<any>, name: string | null) {
     this._name = name;
-    this.state$ = stream.compose(dropRepeats()).remember();
+    this.state$ = adapt(stream.compose(dropRepeats()).remember());
     if (!name) {
       return;
     }
@@ -115,7 +118,7 @@ export class StateSource<T> {
   public select<R>(scope: Scope<T, R>): StateSource<R> {
     const get = makeGetter(scope);
     return new StateSource<R>(
-      this.state$.map(get).filter(s => typeof s !== 'undefined'),
+      xs.fromObservable<T>(this.state$).map(get).filter(s => typeof s !== 'undefined'),
       null,
     );
   }
@@ -134,7 +137,8 @@ export default function onionify<So, Si>(
       .drop(1);
     sources[name] = new StateSource<any>(state$, name) as any;
     const sinks = main(sources as So);
-    reducerMimic$.imitate(sinks[name]);
+    const imitation$ = sinks[name] && xs.fromObservable(sinks[name]);
+    reducerMimic$.imitate(imitation$ as Stream<Reducer<any>>);
     return sinks;
   }
 }
