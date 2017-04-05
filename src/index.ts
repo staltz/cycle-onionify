@@ -118,7 +118,7 @@ export class StateSource<T> {
   public select<R>(scope: Scope<T, R>): StateSource<R> {
     const get = makeGetter(scope);
     return new StateSource<R>(
-      xs.fromObservable<T>(this.state$).map(get).filter(s => typeof s !== 'undefined'),
+      this.state$.map(get).filter(s => typeof s !== 'undefined'),
       null,
     );
   }
