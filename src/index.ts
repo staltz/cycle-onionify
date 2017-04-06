@@ -137,8 +137,10 @@ export default function onionify<So, Si>(
       .drop(1);
     sources[name] = new StateSource<any>(state$, name) as any;
     const sinks = main(sources as So);
-    const imitation$ = sinks[name] && xs.fromObservable(sinks[name]);
-    reducerMimic$.imitate(imitation$ as Stream<Reducer<any>>);
+    if (sinks[name]) {
+      const stream$ = xs.fromObservable<Reducer<any>>(sinks[name]);
+      reducerMimic$.imitate(stream$);
+    }
     return sinks;
   }
 }
