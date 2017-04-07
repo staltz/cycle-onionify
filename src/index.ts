@@ -15,22 +15,22 @@ export type Lens<T, R> = {
 }
 export type Scope<T, R> = string | number | Lens<T, R>;
 
-export function pick<T>(selector: Selector | string) {
+export function pick(selector: Selector | string) {
   if (typeof selector === 'string') {
-    return function pickWithString(sinksArray$: any): T {
+    return function pickWithString(sinksArray$: any): Stream<Array<any>> {
       return adapt((xs.fromObservable(sinksArray$) as Stream<Array<any>>)
         .map(sinksArray => sinksArray.map(sinks => sinks[selector])));
     };
   } else {
-    return function pickWithFunction(sinksArray$: any): T {
+    return function pickWithFunction(sinksArray$: any): Stream<Array<any>> {
       return adapt((xs.fromObservable(sinksArray$) as Stream<Array<any>>)
         .map(sinksArray => sinksArray.map(selector)));
     };
   }
 }
 
-export function mix<T>(aggregator: Aggregator) {
-  return function mixOperator(streamArray$: any): T {
+export function mix(aggregator: Aggregator) {
+  return function mixOperator(streamArray$: any): Stream<Array<Stream<any>>> {
     return adapt((xs.fromObservable(streamArray$) as Stream<Array<Stream<any>>>)
       .map(streamArray => aggregator(...streamArray))
       .flatten());
