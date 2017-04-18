@@ -83,7 +83,7 @@ As a consequence, state management is layered like an onion. State streams (sour
 npm install --save cycle-onionify
 ```
 
-[xstream](http://staltz.com/xstream/) v10 is a hard dependency. If you use npm v3 (you should), this should not create multiple instances of xstream in `node_modules`, since most Cycle.js packages are using xstream v6 too.
+[xstream](http://staltz.com/xstream/) v10 is a hard dependency. If you use npm v3 (you should), this should not create multiple instances of xstream in `node_modules`, since most Cycle.js packages are using xstream v10 too.
 
 Import and call onionify on your `main` function (the top-most component in your app):
 
