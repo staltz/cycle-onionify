@@ -30,7 +30,7 @@ export function pick(selector: Selector | string) {
 }
 
 export function mix(aggregator: Aggregator) {
-  return function mixOperator(streamArray$: any): Stream<Array<Stream<any>>> {
+  return function mixOperator(streamArray$: any): Stream<any> {
     return adapt((xs.fromObservable(streamArray$) as Stream<Array<Stream<any>>>)
       .map(streamArray => aggregator(...streamArray))
       .flatten());
