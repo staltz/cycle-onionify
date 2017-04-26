@@ -1,12 +1,12 @@
 import xs, {Stream} from 'xstream';
 import isolate from '@cycle/isolate';
 import {div, span, input, button, ul, VNode, DOMSource} from '@cycle/dom';
-import {StateSource, pick, mix, isolateSink as isolateOnionSink} from 'cycle-onionify';
-import Counter, {Sources as CounterSources, State as CounterState} from './Counter';
-import List, {Sources as ListSources, State as ListState} from './List';
+import {StateSource, pick, mix, Lens} from 'cycle-onionify';
+import Counter, {State as CounterState} from './Counter';
+import List from './List';
 
 export interface State {
-  list: ListState;
+  list: Array<{content: string}>;
   counter?: CounterState;
 }
 
@@ -75,18 +75,21 @@ function view(listVNode$: Stream<VNode>, counterVNode$: Stream<VNode>): Stream<V
 }
 
 export default function TodoApp(sources: Sources): Sinks {
-  const listSinks: Sinks & {counterOnion: Stream<Reducer>} = isolate(List, 'list')(sources);
-  const counterSinks: Sinks = isolate(Counter, 'counter')(sources);
+  const identityLens: Lens<State, State> = {
+    get: state => state,
+    set: (state, childState) => childState
+  };
+
+  const listSinks: Sinks = isolate(List, {onion: identityLens})(sources);
+  const counterSinks: Sinks = isolate(Counter, {onion: 'counter'})(sources);
   const action$ = intent(sources.DOM);
   const parentReducer$ = model(action$);
   const listReducer$ = listSinks.onion;
   const counterReducer$ = counterSinks.onion;
-  const otherCounterReducer$ = isolateOnionSink<State, any>(listSinks.counterOnion, 'counter');
   const reducer$ = xs.merge(
     parentReducer$,
     listReducer$,
     counterReducer$,
-    otherCounterReducer$,
   );
   const vdom$ = view(listSinks.DOM, counterSinks.DOM);
 
