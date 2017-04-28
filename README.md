@@ -343,6 +343,64 @@ function Child(sources) {
 
 See the example code at `examples/advanced` for more details.
 
+### How to share data among components, or compute derived data
+
+There are cases when you need more control over the way the state is passed from parent to child components. The standard mechanism of "peeling off" the state object is not flexible enough in situations such as:
+
+- a component needs access to the same state object as its parent
+- a component needs a combination of several pieces of the state object
+- you need to manipulate a piece of data before passing it to a component
+
+In such cases you can use *lenses*. The idea of lenses is simple: they provide a view over a data structure, so that the user can see and modify the data through it.
+
+The standard mechanism is already implementing a simple form of lens:
+
+```js
+const fooSinks = isolate(Foo, 'foo')(sources);
+```
+By isolating the component with `'foo'` we are *focusing* on that specific piece of the state object. The same thing can be achieved more explicitly as follows:
+
+```js
+const fooLens = {
+  get: state => state.foo,
+  set: (state, childState) => ({...state, foo: childState})
+};
+
+const fooSinks = isolate(Foo, {onion: fooLens})(sources);
+```
+
+The `fooLens` is composed of a `get` function that extracts the `.foo` sub-state, and a `set` function that returns the updated state whenever the sub-state is modified by the child component. Lenses can be used as scopes in `isolate` thanks to [flexible isolation](https://cycle.js.org/releases.html#flexible-isolation).
+
+A common use case for lenses is sharing data among components. The following lenses give components read/write access to the same `status` value:
+
+```js
+// state in the parent: { foo: 3, bar: 8, status: 'ready' }
+
+const fooLens = { //    { val: 3, status: 'ready' }
+  get: state => ({val: state.foo, status: state.status}),
+  set: (state, childState) => ({...state, foo: childState.val, status: childState.status})
+};
+
+const barLens = { //    { val: 8, status: 'ready' }
+  get: state => ({val: state.bar, status: state.status}),
+  set: (state, childState) => ({...state, bar: childState.val, status: childState.status})
+};
+
+const fooSinks = isolate(Child, {onion: fooLens})(sources);
+const barSinks = isolate(Child, {onion: barLens})(sources);
+```
+
+Another use case is computing derived data, for example the average of an array of numbers:
+
+```js
+// state in the parent: { xs: [23, 12, 25] }
+
+const averageLens = {// { avg: 20 }
+  get: state => ({avg: state.xs.reduce((a, b) => a + b, 0) / state.xs.length}),
+  set: (state, childState) => state // ignore updates
+}
+```
+
 ### How to choose a different key other than `onion`
 
 If you want to choose what key to use in sources and sinks (the default is `onion`), pass it as the second argument to onionify:
