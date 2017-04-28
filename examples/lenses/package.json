@@ -1,0 +1,26 @@
+{
+  "name": "example",
+  "version": "0.0.0",
+  "private": true,
+  "author": "Dario Aprea",
+  "license": "MIT",
+  "dependencies": {
+    "@cycle/run": "3.0",
+    "@cycle/dom": "15.2",
+    "@cycle/isolate": "2.1.0",
+    "@types/es6-shim": "^0.31.32",
+    "cycle-onionify": "../..",
+    "xstream": "10.3"
+  },
+  "devDependencies": {
+    "browserify": "13.0.x",
+    "mkdirp": "0.5.x",
+    "typescript": "2.2.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prebrowserify": "mkdirp dist && tsc",
+    "browserify": "browserify lib/main.js --outfile dist/main.js",
+    "start": "npm install && npm run browserify && echo 'OPEN index.html IN YOUR BROWSER'"
+  }
+}
