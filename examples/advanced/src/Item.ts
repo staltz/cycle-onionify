@@ -4,6 +4,7 @@ import {StateSource} from 'cycle-onionify';
 
 export interface State {
   content: string;
+  key: number;
 }
 
 export type Reducer = (prev?: State) => State | undefined;

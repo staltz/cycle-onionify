@@ -1,40 +1,114 @@
 import {DevToolEnabledSource} from '@cycle/run';
-import xs, {Stream, MemoryStream} from 'xstream';
+import xs, {Stream, MemoryStream, InternalListener, OutSender, Operator} from 'xstream';
 import dropRepeats from 'xstream/extra/dropRepeats';
-import { adapt } from '@cycle/run/lib/adapt';
+import isolate from '@cycle/isolate';
+import {adapt} from '@cycle/run/lib/adapt';
+export {pickCombine} from './pickCombine';
+export {pickMerge} from './pickMerge';
 
 export type MainFn<So, Si> = (sources: So) => Si;
 export type Reducer<T> = (state: T | undefined) => T | undefined;
-export type Selector = (sinks: any) => any;
-export type Aggregator = (...streams: Array<Stream<any>>) => Stream<any>;
 export type Getter<T, R> = (state: T | undefined) => R | undefined;
 export type Setter<T, R> = (state: T | undefined, childState: R | undefined) => T | undefined;
 export type Lens<T, R> = {
   get: Getter<T, R>;
   set: Setter<T, R>;
-}
+};
 export type Scope<T, R> = string | number | Lens<T, R>;
+export type Instances<Si> = {
+  dict: any,
+  arr: Array<Si & {_key: string}>,
+};
 
-export function pick<T = Stream<Array<any>>>(selector: Selector | string) {
-  if (typeof selector === 'string') {
-    return function pickWithString(sinksArray$: any): T {
-      return adapt((xs.fromObservable(sinksArray$) as Stream<Array<any>>)
-        .map(sinksArray => sinksArray.map(sinks => sinks[selector])));
-    };
-  } else {
-    return function pickWithFunction(sinksArray$: any): T {
-      return adapt((xs.fromObservable(sinksArray$) as Stream<Array<any>>)
-        .map(sinksArray => sinksArray.map(selector)));
-    };
-  }
+function onionifyChild(childComp: any): any {
+  return function childOnionified(sources: any): any {
+    const reducerMimic$ = xs.create<Reducer<any>>();
+    const reducerFromParentState$: Stream<Reducer<any>> = sources.onion.state$
+      .map((state: any) => () => state);
+
+    const state$ = xs.merge(reducerMimic$, reducerFromParentState$)
+      .fold((state, reducer) => reducer(state), void 0)
+      .drop(1)
+      .filter(s => typeof s !== 'undefined');
+
+    sources.onion = new StateSource<any>(state$, 'onion') as any;
+    const sinks = childComp(sources);
+    if (sinks.onion) {
+      const stream$ = xs.fromObservable<Reducer<any>>(sinks.onion);
+      reducerMimic$.imitate(stream$);
+    }
+    return sinks;
+  };
 }
 
-export function mix<T = Stream<any>>(aggregator: Aggregator) {
-  return function mixOperator(streamArray$: any): T {
-    return adapt((xs.fromObservable(streamArray$) as Stream<Array<Stream<any>>>)
-      .map(streamArray => aggregator(...streamArray))
-      .flatten());
-  }
+function defaultGetKey(statePiece: any) {
+  return statePiece.key;
+}
+
+function instanceLens(key: string): Lens<Array<any>, any> {
+  return  {
+    get(arr: Array<any> | undefined): any {
+      if (typeof arr === 'undefined') {
+        return void 0;
+      } else {
+        for (let i = 0, n = arr.length; i < n; ++i) {
+          if (arr[i].key === key) {
+            return arr[i];
+          }
+        }
+        return void 0;
+      }
+    },
+
+    set(arr: Array<any> | undefined, item: any): any {
+      if (typeof arr === 'undefined') {
+        return [item];
+      } else if (typeof item === 'undefined') {
+        return arr.filter(s => s.key !== key);
+      } else {
+        return arr.map(s => {
+          if (s.key === key) {
+            return item;
+          } else {
+            return s;
+          }
+        });
+      }
+    },
+  };
+}
+
+export function collection<Si>(itemComp: (so: any) => Si,
+                               sources: any,
+                               getKey: any = defaultGetKey): Stream<Instances<Si>> {
+  const array$ = sources.onion.state$;
+
+  const collection$ = array$.fold((acc: Instances<Si>, nextStateArray: any) => {
+    const dict = acc.dict;
+    const nextInstArray = Array(nextStateArray.length) as Array<Si & {_key: string}>;
+
+    const nextKeys = {};
+    // add
+    for (let i = 0, n = nextStateArray.length; i < n; ++i) {
+      const key = getKey(nextStateArray[i]);
+      nextKeys[key] = true;
+      if (!(key in dict)) {
+        const scopes = {'*': '$c$' + i, onion: instanceLens(key)};
+        dict[key] = isolate(onionifyChild(itemComp), scopes)(sources);
+      }
+      nextInstArray[i] = dict[key];
+      nextInstArray[i]._key = key;
+    }
+    // remove
+    for (const key in dict) {
+      if (!(key in nextKeys)) {
+        delete dict[key];
+      }
+    }
+    return {dict: dict, arr: nextInstArray};
+  }, {dict: {}, arr: []} as Instances<Si>);
+
+  return collection$;
 }
 
 function makeGetter<T, R>(scope: Scope<T, R>): Getter<T, R> {
@@ -137,12 +211,12 @@ export default function onionify<So, Si>(
     const state$ = reducerMimic$
       .fold((state, reducer) => reducer(state), void 0)
       .drop(1);
-    sources[name] = new StateSource<any>(state$, name) as any;
+    sources[name as any] = new StateSource<any>(state$, name) as any;
     const sinks = main(sources as So);
     if (sinks[name]) {
       const stream$ = xs.fromObservable<Reducer<any>>(sinks[name]);
       reducerMimic$.imitate(stream$);
     }
     return sinks;
-  }
+  };
 }

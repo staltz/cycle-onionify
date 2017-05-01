@@ -1,7 +1,13 @@
 import test from 'ava';
 import xs from 'xstream';
 import isolate from '@cycle/isolate';
-import onionify, {pick, mix, isolateSource, isolateSink} from './lib/index';
+import onionify, {
+  pickCombine,
+  pickMerge,
+  collection,
+  isolateSource,
+  isolateSink,
+} from './lib/index';
 
 test('returns a wrapped main function', t => {
   function main() { return {}; }
@@ -327,83 +333,6 @@ test('child component also gets undefined if parent has not initialized state', 
   wrapped({});
 });
 
-test('pick operator works with string argument', t => {
-  t.plan(3);
-
-  const sinksArray$ = xs.of([{foo: 10, bar: 20}, {foo: 11, bar: 21}]);
-  const fooArray$ = sinksArray$.compose(pick('foo'));
-
-  fooArray$.addListener({
-    next(arr) {
-      t.is(arr.length, 2);
-      t.is(arr[0], 10);
-      t.is(arr[1], 11);
-    },
-    error(e) { t.fail(e); },
-    complete() {},
-  });
-});
-
-test('pick operator works with function argument', t => {
-  t.plan(3);
-
-  const sinksArray$ = xs.of([{foo: 10, bar: 20}, {foo: 11, bar: 21}]);
-  const barArray$ = sinksArray$.compose(pick(sinks => sinks.bar));
-
-  barArray$.addListener({
-    next(arr) {
-      t.is(arr.length, 2);
-      t.is(arr[0], 20);
-      t.is(arr[1], 21);
-    },
-    error(e) { t.fail(e); },
-    complete() {},
-  });
-});
-
-test('mix operator works with xs.combine', t => {
-  t.plan(3);
-
-  const sinksArray$ = xs.of(
-    [xs.of(10), xs.of(11)]
-  );
-  const fooCombinedArray$ = sinksArray$.compose(mix(xs.combine));
-
-  fooCombinedArray$.addListener({
-    next(arr) {
-      t.is(arr.length, 2);
-      t.is(arr[0], 10);
-      t.is(arr[1], 11);
-    },
-    error(e) { t.fail(e); },
-    complete() {},
-  });
-});
-
-test('pick and mix operators work together', t => {
-  t.plan(3);
-
-  const sinksArray$ = xs.of(
-    [
-      {foo: xs.of(10), bar: xs.of(20)},
-      {foo: xs.of(11), bar: xs.of(21)}
-    ]
-  );
-  const barArray$ = sinksArray$
-    .compose(pick('bar'))
-    .compose(mix(xs.combine));
-
-  barArray$.addListener({
-    next(arr) {
-      t.is(arr.length, 2);
-      t.is(arr[0], 20);
-      t.is(arr[1], 21);
-    },
-    error(e) { t.fail(e); },
-    complete() {},
-  });
-});
-
 test('should work with a manually isolated child component', t => {
   t.plan(7);
 
@@ -661,13 +590,8 @@ test('should work with an isolated list child with a default reducer', t => {
   }
 
   function List(sources) {
-    const array$ = sources.onion.state$;
-    const childSinks$ = array$.map(array =>
-      array.map((item, i) => isolate(Child, i)(sources))
-    );
-    const reducer$ = childSinks$
-      .compose(pick(sinks => sinks.onion))
-      .compose(mix(xs.merge));
+    const instances$ = collection(Child, sources);
+    const reducer$ = instances$.compose(pickMerge('onion'));
      return {
        onion: reducer$,
      }
