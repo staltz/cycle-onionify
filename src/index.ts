@@ -37,7 +37,13 @@ function onionifyChild(childComp: any): any {
       const stream$ = xs.fromObservable<Reducer<any>>(sinks.onion);
       reducerMimic$.imitate(stream$);
     }
-    return sinks;
+
+    const reducerToParent$ = state$.map(state => prevState => state)
+
+    return {
+      ...sinks,
+      onion: reducerToParent$
+    }
   };
 }
 

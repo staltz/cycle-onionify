@@ -22,18 +22,31 @@ export type Sinks = {
 export default function Item(sources: Sources): Sinks {
   const state$ = sources.onion.state$;
 
-  const vdom$ = state$.map(state =>
-    li('.item', [
+  const vdom$ = state$.map(state => {
+    console.log('Item state update');
+    return li('.item', [
       span('.content', `${state.content} `),
-      span('.delete', '(delete)')
+      span('.delete', '(delete)'),
+      span('.trim', '(trim)')
     ])
-  );
+  });
 
-  const reducer$ = sources.DOM
-    .select('.delete').events('click')
-    .mapTo(function removeReducer(prevState: State): State {
-      return void 0;
-    });
+  const deleteReducer$ = sources.DOM
+  .select('.delete').events('click')
+  .mapTo(function removeReducer(prevState: State): State {
+    return void 0;
+  });
+
+  const trimReducer$ = sources.DOM
+  .select('.trim').events('click')
+  .mapTo(function trimReducer(prevState: State): State {
+    return {
+      content: prevState.content.slice(0, -1),
+      key: prevState.key
+    }
+  });
+  
+  const reducer$ = xs.merge(deleteReducer$, trimReducer$);
 
   return {
     DOM: vdom$,
