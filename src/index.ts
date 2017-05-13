@@ -26,7 +26,7 @@ function onionifyChild(childComp: any): any {
     const reducerFromParentState$: Stream<Reducer<any>> = sources.onion.state$
       .map((state: any) => () => state);
 
-    const state$ = xs.merge(reducerMimic$, reducerFromParentState$)
+    const state$: Stream<any> = xs.merge(reducerMimic$, reducerFromParentState$)
       .fold((state, reducer) => reducer(state), void 0)
       .drop(1)
       .filter(s => typeof s !== 'undefined');
@@ -36,13 +36,11 @@ function onionifyChild(childComp: any): any {
     if (sinks.onion) {
       const stream$ = xs.fromObservable<Reducer<any>>(sinks.onion);
       reducerMimic$.imitate(stream$);
-    }
 
-    const reducerToParent$ = state$.map(state => prevState => state)
-
-    return {
-      ...sinks,
-      onion: reducerToParent$
+      const reducerToParent$ = state$.map((state: any) => () => state);
+      return {...sinks, onion: reducerToParent$};
+    } else {
+      return sinks;
     }
   };
 }
