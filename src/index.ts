@@ -23,13 +23,11 @@ export type Instances<Si> = {
 function onionifyChild(childComp: any): any {
   return function childOnionified(sources: any): any {
     const reducerMimic$ = xs.create<Reducer<any>>();
-    const reducerFromParentState$: Stream<Reducer<any>> = sources.onion.state$
-      .map((state: any) => () => state);
 
-    const state$: Stream<any> = xs.merge(reducerMimic$, reducerFromParentState$)
-      .fold((state, reducer) => reducer(state), void 0)
-      .drop(1)
-      .filter(s => typeof s !== 'undefined');
+    const state$: Stream<any> = sources.onion.state$
+      .map((stateFromParent: any) =>
+        reducerMimic$.fold((state, reducer) => reducer(state), stateFromParent)
+      ).flatten();
 
     sources.onion = new StateSource<any>(state$, 'onion') as any;
     const sinks = childComp(sources);
