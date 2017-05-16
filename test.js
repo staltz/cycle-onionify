@@ -1,5 +1,6 @@
 import test from 'ava';
 import xs from 'xstream';
+import delay from 'xstream/extra/delay';
 import isolate from '@cycle/isolate';
 import onionify, {
   pickCombine,
@@ -573,19 +574,24 @@ test('should work with an isolated child component on an array entry', t => {
   wrapped({});
 });
 
-test('should work with an isolated list child with a default reducer', t => {
-  let asserts = 0;
+test.cb('should work with collection() and an isolated list children', t => {
+  t.plan(6);
 
   function Child(sources) {
     const defaultReducer$ = xs.of(prev => {
-      if (prev) {
+      if (typeof prev.val === 'number') {
         return prev;
       } else {
-        return 10;
+        return {key: prev.key, val: 10};
       }
     });
+
+    const deleteReducer$ = xs.of(prev =>
+      prev.key === 'c' ? void 0 : prev
+    ).compose(delay(50));
+
     return {
-      onion: defaultReducer$,
+      onion: xs.merge(defaultReducer$, deleteReducer$),
     };
   }
 
@@ -598,30 +604,43 @@ test('should work with an isolated list child with a default reducer', t => {
   }
 
   function Main(sources) {
-    const expected = [[3], [3, null], [3,10], [3,10,null], [3,10,10]];
+    const expected = [
+      [{key: 'a', val: 3}],
+      [{key: 'a', val: 3}, {key: 'b', val: null}],
+      [{key: 'a', val: 3}, {key: 'b', val: 10}],
+      [{key: 'a', val: 3}, {key: 'b', val: 10}, {key: 'c', val: 27}],
+      [{key: 'a', val: 3}, {key: 'b', val: 10}]
+    ];
+
     sources.onion.state$.addListener({
       next(x) {
         t.deepEqual(x.list, expected.shift());
-        asserts += 1;
         if (expected.length === 0) {
-          t.is(asserts, 5);
           t.pass();
+          t.end();
         }
       },
-      error(e) { t.fail(e.message); },
-      complete() { },
+      error(e) {
+        t.fail(e.message);
+      },
+      complete() {
+        t.fail('complete should not be called');
+      },
     });
 
     const childSinks = isolate(List, 'list')(sources);
     const childReducer$ = childSinks.onion;
 
     const initReducer$ = xs.of(function initReducer(prevState) {
-      return { list: [3] };
+      return { list: [{key: 'a', val: 3}] };
     });
-    const addReducer$ = xs.periodic(100).take(2)
-      .mapTo(function addReducer(prev) {
-        return {list: prev.list.concat([null])};
-      });
+
+    const addReducer$ = xs.of(function addB(prev) {
+      return {list: prev.list.concat({key: 'b', val: null})};
+    }, function addC(prev) {
+      return {list: prev.list.concat({key: 'c', val: 27})};
+    }).compose(delay(100));
+
     const parentReducer$ = xs.merge(initReducer$, addReducer$)
     const reducer$ = xs.merge(parentReducer$, childReducer$);
 
