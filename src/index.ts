@@ -104,21 +104,23 @@ export function isolateSink<T, R>(
 
 export class StateSource<T> {
   public state$: MemoryStream<T>;
+  private _state$: MemoryStream<T>;
   private _name: string | null;
 
   constructor(stream: Stream<any>, name: string | null) {
     this._name = name;
-    this.state$ = adapt(stream.compose(dropRepeats()).remember());
+    this._state$ = stream.compose(dropRepeats()).remember()
+    this.state$ = adapt(this._state$);
     if (!name) {
       return;
     }
-    (this.state$ as MemoryStream<T> & DevToolEnabledSource)._isCycleSource = name;
+    (this._state$ as MemoryStream<T> & DevToolEnabledSource)._isCycleSource = name;
   }
 
   public select<R>(scope: Scope<T, R>): StateSource<R> {
     const get = makeGetter(scope);
     return new StateSource<R>(
-      this.state$.map(get).filter(s => typeof s !== 'undefined'),
+      this._state$.map(get).filter(s => typeof s !== 'undefined'),
       null,
     );
   }
