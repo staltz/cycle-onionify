@@ -48,7 +48,7 @@ function defaultGetKey(statePiece: any) {
 }
 
 function instanceLens(key: string): Lens<Array<any>, any> {
-  return  {
+  return {
     get(arr: Array<any> | undefined): any {
       if (typeof arr === 'undefined') {
         return void 0;
