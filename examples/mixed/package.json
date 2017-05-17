@@ -5,12 +5,12 @@
   "author": "Andre Staltz",
   "license": "MIT",
   "dependencies": {
-    "@cycle/run": "3.0",
-    "@cycle/dom": "15.2",
+    "@cycle/run": "3.1",
+    "@cycle/dom": "17.2",
     "@cycle/isolate": "2.1.0",
     "@types/es6-shim": "^0.31.32",
-    "cycle-onionify": "../..",
-    "xstream": "10.3"
+    "cycle-onionify": "file:../..",
+    "xstream": "10.x"
   },
   "devDependencies": {
     "browserify": "13.0.x",

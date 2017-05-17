@@ -1,24 +1,23 @@
 import xs, {Stream, MemoryStream} from 'xstream';
 import {li, span, button, VNode, DOMSource} from '@cycle/dom';
 import {StateSource} from 'cycle-onionify';
-import {State as CounterState} from './Counter';
 
-export interface State {
+export type State = {
   content: string;
   count: number;
-}
+};
 
 export type Reducer = (prev?: State) => State | undefined;
 
-export interface Sources {
+export type Sources = {
   DOM: DOMSource;
   onion: StateSource<State>;
-}
+};
 
-export interface Sinks {
+export type Sinks = {
   DOM: Stream<VNode>;
   onion: Stream<Reducer>;
-}
+};
 
 export default function Item(sources: Sources): Sinks {
   const state$ = sources.onion.state$;
@@ -43,7 +42,7 @@ export default function Item(sources: Sources): Sinks {
     sources.DOM.select('.increment').events('click').mapTo(+1),
     sources.DOM.select('.decrement').events('click').mapTo(-1),
   ).map(delta => function counterReducer(prev: State): State {
-    return Object.assign({}, prev, {count: prev.count + delta});
+    return {...prev, count: prev.count + delta};
   });
 
   const reducer$ = xs.merge(removeReducer$, counterReducer$);

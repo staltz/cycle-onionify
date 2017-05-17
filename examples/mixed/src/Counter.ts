@@ -2,21 +2,21 @@ import xs, {Stream} from 'xstream';
 import {div, button, p, makeDOMDriver, VNode, DOMSource} from '@cycle/dom';
 import {StateSource} from 'cycle-onionify';
 
-export interface State {
+export type State = {
   count: number;
-}
+};
 
 export type Reducer = (prev?: State) => State | undefined;
 
-export interface Sources {
+export type Sources = {
   DOM: DOMSource;
   onion: StateSource<State>;
-}
+};
 
-export interface Sinks {
+export type Sinks = {
   DOM: Stream<VNode>;
   onion: Stream<Reducer>;
-}
+};
 
 export default function Counter(sources: Sources): Sinks {
   const action$ = xs.merge(
