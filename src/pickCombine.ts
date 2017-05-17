@@ -45,7 +45,7 @@ class PickCombineListener<Si, T> implements InternalListener<T>, OutSender<Array
     const ils = p.ils;
     const instArr = p.inst.arr;
     for (let i = 0; i < n; ++i) {
-      if (ils[instArr[i]._key as any].c === false) {
+      if ((ils.get(instArr[i]._key) as any).c === false) {
         return;
       }
     }
@@ -53,23 +53,19 @@ class PickCombineListener<Si, T> implements InternalListener<T>, OutSender<Array
   }
 }
 
-type PCListeners<Si, T> = {
-  [key: string]: PickCombineListener<Si, T>,
-};
-
 class PickCombine<Si, R> implements Operator<Instances<Si>, Array<R>> {
   public type = 'combine';
   public ins: Stream<Instances<Si>>;
   public out: Stream<Array<R>>;
   public sel: string;
-  public ils: PCListeners<Si, R>;
+  public ils: Map<string, PickCombineListener<Si, R>>;
   public inst: Instances<Si>;
 
   constructor(sel: string, ins: Stream<Instances<Si>>) {
     this.ins = ins;
     this.sel = sel;
     this.out = null as any;
-    this.ils = {};
+    this.ils = new Map();
     this.inst = null as any;
   }
 
@@ -80,28 +76,30 @@ class PickCombine<Si, R> implements Operator<Instances<Si>, Array<R>> {
 
   _stop(): void {
     const ils = this.ils;
-    for (const key in ils) {
-      const il = ils[key];
-      il.ins._remove(ils[key]);
+    ils.forEach(il => {
+      il.ins._remove(il);
       il.ins = null as any;
       il.out = null as any;
       il.val = null as any;
-      delete ils[key];
-    }
+    });
+    ils.clear();
     this.out = null as any;
-    this.ils = {};
+    this.ils = new Map();
     this.inst = null as any;
   }
 
   up(): void {
     const arr = this.inst.arr;
     const n = arr.length;
-    const outArr = Array(n);
+    const outArr: Array<R> = Array(n);
     const ils = this.ils;
     for (let i = 0; i < n; ++i) {
       const sinks = arr[i];
       const key = sinks._key as any as string;
-      const val = ils[key].val;
+      if (!ils.has(key)) {
+        return;
+      }
+      const val = (ils.get(key) as any).val;
       if (val === NO) {
         return;
       }
@@ -128,8 +126,8 @@ class PickCombine<Si, R> implements Operator<Instances<Si>, Array<R>> {
       const sinks = arrSinks[i];
       const key = sinks._key as any as string;
       const sink = sinks[sel];
-      if (!(key in ils)) {
-        ils[key] = new PickCombineListener(key, out, this, sink);
+      if (!ils.has(key)) {
+        ils.set(key, new PickCombineListener(key, out, this, sink));
         added = true;
       }
     }
@@ -139,23 +137,22 @@ class PickCombine<Si, R> implements Operator<Instances<Si>, Array<R>> {
         const key = sinks._key as any as string;
         const sink = sinks[sel];
         if ((sink as any)._ils.length === 0) {
-          sink._add(ils[key]);
+          sink._add(ils.get(key));
         }
       }
     }
     // remove
     let removed = false;
-    for (const key in ils) {
-      if (!(key in dict)) {
-        const il = ils[key];
-        il.ins._remove(ils[key]);
+    ils.forEach((il, key) => {
+      if (!dict.has(key)) {
+        il.ins._remove(il);
         il.ins = null as any;
         il.out = null as any;
         il.val = null as any;
-        delete ils[key];
+        ils.delete(key);
         removed = true;
       }
-    }
+    });
     if (removed) {
       this.up();
     }

@@ -40,7 +40,7 @@ class PickMergeListener<Si, T> implements InternalListener<T>, OutSender<T> {
     const ils = p.ils;
     const instArr = p.inst.arr;
     for (let i = 0; i < n; ++i) {
-      if (ils[instArr[i]._key as any].c === false) {
+      if ((ils.get(instArr[i]._key) as any).c === false) {
         return;
       }
     }
@@ -48,23 +48,19 @@ class PickMergeListener<Si, T> implements InternalListener<T>, OutSender<T> {
   }
 }
 
-type PMListeners<Si, T> = {
-  [key: string]: PickMergeListener<Si, T>,
-};
-
 class PickMerge<Si, T> implements Operator<Instances<Si>, T> {
   public type = 'pickMerge';
   public ins: Stream<Instances<Si>>;
   public out: Stream<T>;
   public sel: string;
-  public ils: PMListeners<Si, T>;
+  public ils: Map<string, PickMergeListener<Si, T>>;
   public inst: Instances<Si>;
 
   constructor(sel: string, ins: Stream<Instances<Si>>) {
     this.ins = ins;
     this.out = null as any;
     this.sel = sel;
-    this.ils = {};
+    this.ils = new Map();
     this.inst = null as any;
   }
 
@@ -75,18 +71,15 @@ class PickMerge<Si, T> implements Operator<Instances<Si>, T> {
 
   _stop(): void {
     const ils = this.ils;
-    const prevKeys = Object.keys(ils);
-    const n = prevKeys.length;
-    for (let i = 0; i < n; ++i) {
-      const key = prevKeys[i];
-      const il = ils[key];
-      il.ins._remove(ils[key]);
+    ils.forEach((il, key) => {
+      il.ins._remove(il);
       il.ins = null as any;
       il.out = null as any;
-      delete ils[key];
-    }
+      ils.delete(key);
+    });
+    ils.clear();
     this.out = null as any;
-    this.ils = {};
+    this.ils = new Map();
     this.inst = null as any;
   }
 
@@ -102,8 +95,8 @@ class PickMerge<Si, T> implements Operator<Instances<Si>, T> {
       const sinks = arrSinks[i];
       const key = sinks._key as any as string;
       const sink = sinks[sel];
-      if (!(key in ils)) {
-        ils[key] = new PickMergeListener(out, this, sink);
+      if (!ils.has(key)) {
+        ils.set(key, new PickMergeListener(out, this, sink));
       }
     }
     for (let i = 0; i < n; ++i) {
@@ -111,19 +104,18 @@ class PickMerge<Si, T> implements Operator<Instances<Si>, T> {
       const key = sinks._key as any as string;
       const sink = sinks[sel];
       if ((sink as any)._ils.length === 0) {
-        sink._add(ils[key]);
+        sink._add(ils.get(key));
       }
     }
     // remove
-    for (const key in ils) {
-      if (!(key in inst.dict) || !inst.dict[key]) {
-        const il = ils[key];
-        il.ins._remove(ils[key]);
+    ils.forEach((il, key) => {
+      if (!inst.dict.has(key) || !inst.dict.get(key)) {
+        il.ins._remove(il);
         il.ins = null as any;
         il.out = null as any;
-        delete ils[key];
+        ils.delete(key);
       }
-    }
+    });
   }
 
   _e(err: any) {

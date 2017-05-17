@@ -16,7 +16,7 @@ export type Lens<T, R> = {
 };
 export type Scope<T, R> = string | number | Lens<T, R>;
 export type Instances<Si> = {
-  dict: any,
+  dict: Map<string, Si>,
   arr: Array<Si & {_key: string}>,
 };
 
@@ -89,26 +89,30 @@ export function collection<Si>(itemComp: (so: any) => Si,
     const dict = acc.dict;
     const nextInstArray = Array(nextStateArray.length) as Array<Si & {_key: string}>;
 
-    const nextKeys = {};
+    const nextKeys = new Set<string>();
     // add
     for (let i = 0, n = nextStateArray.length; i < n; ++i) {
       const key = getKey(nextStateArray[i]);
-      nextKeys[key] = true;
-      if (!(key in dict)) {
+      nextKeys.add(key);
+      if (dict.has(key)) {
+        nextInstArray[i] = dict.get(key) as any;
+      } else {
         const scopes = {'*': '$c$' + i, onion: instanceLens(key)};
-        dict[key] = isolate(onionifyChild(itemComp), scopes)(sources);
+        const sinks = isolate(onionifyChild(itemComp), scopes)(sources);
+        dict.set(key, sinks);
+        nextInstArray[i] = sinks;
       }
-      nextInstArray[i] = dict[key];
       nextInstArray[i]._key = key;
     }
     // remove
-    for (const key in dict) {
-      if (!(key in nextKeys)) {
-        delete dict[key];
+    dict.forEach((_, key) => {
+      if (!nextKeys.has(key)) {
+        dict.delete(key);
       }
-    }
+    });
+    nextKeys.clear();
     return {dict: dict, arr: nextInstArray};
-  }, {dict: {}, arr: []} as Instances<Si>);
+  }, {dict: new Map(), arr: []} as Instances<Si>);
 
   return collection$;
 }
