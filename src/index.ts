@@ -185,7 +185,10 @@ export class StateSource<T> {
 
   constructor(stream: Stream<any>, name: string | null) {
     this._name = name;
-    this._state$ = stream.compose(dropRepeats()).remember()
+    this._state$ = stream
+      .filter(s => typeof s !== 'undefined')
+      .compose(dropRepeats())
+      .remember();
     this.state$ = adapt(this._state$);
     if (!name) {
       return;
@@ -196,7 +199,7 @@ export class StateSource<T> {
   public select<R>(scope: Scope<T, R>): StateSource<R> {
     const get = makeGetter(scope);
     return new StateSource<R>(
-      this._state$.map(get).filter(s => typeof s !== 'undefined'),
+      this._state$.map(get),
       null,
     );
   }
