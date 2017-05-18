@@ -116,6 +116,18 @@ class PickCombine<Si, R> implements Operator<Instances<Si>, Array<R>> {
     const sel = this.sel;
     const dict = inst.dict;
     const n = arrSinks.length;
+    // remove
+    let removed = false;
+    ils.forEach((il, key) => {
+      if (!dict.has(key)) {
+        il.ins._remove(il);
+        il.ins = null as any;
+        il.out = null as any;
+        il.val = null as any;
+        ils.delete(key);
+        removed = true;
+      }
+    });
     if (n === 0) {
       out._n([]);
       return;
@@ -141,18 +153,6 @@ class PickCombine<Si, R> implements Operator<Instances<Si>, Array<R>> {
         }
       }
     }
-    // remove
-    let removed = false;
-    ils.forEach((il, key) => {
-      if (!dict.has(key)) {
-        il.ins._remove(il);
-        il.ins = null as any;
-        il.out = null as any;
-        il.val = null as any;
-        ils.delete(key);
-        removed = true;
-      }
-    });
     if (removed) {
       this.up();
     }
