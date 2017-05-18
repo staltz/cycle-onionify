@@ -27,7 +27,7 @@ function onionifyChild(childComp: any): any {
     const state$: Stream<any> = sources.onion.state$
       .map((stateFromParent: any) =>
         reducerMimic$.fold((state, reducer) => reducer(state), stateFromParent)
-      ).flatten();
+      ).flatten().remember();
 
     sources.onion = new StateSource<any>(state$, 'onion') as any;
     const sinks = childComp(sources);
