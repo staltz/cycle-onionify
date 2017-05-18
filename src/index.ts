@@ -97,7 +97,7 @@ export function collection<Si>(itemComp: (so: any) => Si,
       if (dict.has(key)) {
         nextInstArray[i] = dict.get(key) as any;
       } else {
-        const scopes = {'*': '$c$' + i, onion: instanceLens(key)};
+        const scopes = {'*': '$' + key, onion: instanceLens(key)};
         const sinks = isolate(onionifyChild(itemComp), scopes)(sources);
         dict.set(key, sinks);
         nextInstArray[i] = sinks;
