@@ -214,8 +214,8 @@ export class StateSource<T> {
 
 export default function onionify<So, Si>(
                                 main: MainFn<So, Si>,
-                                name: string = 'onion'): MainFn<Partial<So>, Partial<Si>> {
-  return function mainOnionified(sources: Partial<So>): Partial<Si> {
+                                name: string = 'onion'): MainFn<So, Si> {
+  return function mainOnionified(sources: So): Si {
     const reducerMimic$ = xs.create<Reducer<any>>();
     const state$ = reducerMimic$
       .fold((state, reducer) => reducer(state), void 0)
