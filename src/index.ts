@@ -47,14 +47,14 @@ function defaultGetKey(statePiece: any) {
   return statePiece.key;
 }
 
-function instanceLens(key: string): Lens<Array<any>, any> {
+function instanceLens(getKey: any, key: string): Lens<Array<any>, any> {
   return {
     get(arr: Array<any> | undefined): any {
       if (typeof arr === 'undefined') {
         return void 0;
       } else {
         for (let i = 0, n = arr.length; i < n; ++i) {
-          if (arr[i].key === key) {
+          if (getKey(arr[i]) === key) {
             return arr[i];
           }
         }
@@ -66,10 +66,10 @@ function instanceLens(key: string): Lens<Array<any>, any> {
       if (typeof arr === 'undefined') {
         return [item];
       } else if (typeof item === 'undefined') {
-        return arr.filter(s => s.key !== key);
+        return arr.filter(s => getKey(s) !== key);
       } else {
         return arr.map(s => {
-          if (s.key === key) {
+          if (getKey(s) === key) {
             return item;
           } else {
             return s;
@@ -97,7 +97,7 @@ export function collection<Si>(itemComp: (so: any) => Si,
       if (dict.has(key)) {
         nextInstArray[i] = dict.get(key) as any;
       } else {
-        const scopes = {'*': '$' + key, onion: instanceLens(key)};
+        const scopes = {'*': '$' + key, onion: instanceLens(getKey, key)};
         const sinks = isolate(onionifyChild(itemComp), scopes)(sources);
         dict.set(key, sinks);
         nextInstArray[i] = sinks;

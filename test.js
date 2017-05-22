@@ -652,3 +652,82 @@ test.cb('should work with collection() and an isolated list children', t => {
   const wrapped = onionify(Main);
   wrapped({});
 });
+
+test.cb('should work with collection() and a custom item key', t => {
+  t.plan(6);
+
+  function Child(sources) {
+    const defaultReducer$ = xs.of(prev => {
+      if (typeof prev.val === 'number') {
+        return prev;
+      } else {
+        return {id: prev.id, val: 10};
+      }
+    });
+
+    const deleteReducer$ = xs.of(prev =>
+      prev.id === 'c' ? void 0 : prev
+    ).compose(delay(50));
+
+    return {
+      onion: xs.merge(defaultReducer$, deleteReducer$),
+    };
+  }
+
+  function List(sources) {
+    const instances$ = collection(Child, sources, s => s.id);
+    const reducer$ = instances$.compose(pickMerge('onion'));
+     return {
+       onion: reducer$,
+     }
+  }
+
+  function Main(sources) {
+    const expected = [
+      [{id: 'a', val: 3}],
+      [{id: 'a', val: 3}, {id: 'b', val: null}],
+      [{id: 'a', val: 3}, {id: 'b', val: 10}],
+      [{id: 'a', val: 3}, {id: 'b', val: 10}, {id: 'c', val: 27}],
+      [{id: 'a', val: 3}, {id: 'b', val: 10}]
+    ];
+
+    sources.onion.state$.addListener({
+      next(x) {
+        t.deepEqual(x.list, expected.shift());
+        if (expected.length === 0) {
+          t.pass();
+          t.end();
+        }
+      },
+      error(e) {
+        t.fail(e.message);
+      },
+      complete() {
+        t.fail('complete should not be called');
+      },
+    });
+
+    const childSinks = isolate(List, 'list')(sources);
+    const childReducer$ = childSinks.onion;
+
+    const initReducer$ = xs.of(function initReducer(prevState) {
+      return { list: [{id: 'a', val: 3}] };
+    });
+
+    const addReducer$ = xs.of(function addB(prev) {
+      return {list: prev.list.concat({id: 'b', val: null})};
+    }, function addC(prev) {
+      return {list: prev.list.concat({id: 'c', val: 27})};
+    }).compose(delay(100));
+
+    const parentReducer$ = xs.merge(initReducer$, addReducer$)
+    const reducer$ = xs.merge(parentReducer$, childReducer$);
+
+    return {
+      onion: reducer$,
+    };
+  }
+
+  const wrapped = onionify(Main);
+  wrapped({});
+});
