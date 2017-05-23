@@ -34,21 +34,18 @@ export default function RadioApp(sources: Sources): Sinks {
   });
 
   const listLens: Lens<State, ListState> = {
-    get: state =>
-      state.list.map((item, i) => {
-        if (item.selected === (i === state.currentIndex)) {
-          return item;
-        } else {
-          return {...item, selected: i === state.currentIndex};
-        }
-      }),
+    get: state => state.list,
     set: (state, childState) => {
       const idx = (childState as any).findIndex((item: any, i: number) =>
         item.selected && state.currentIndex !== i
       );
+      const newCurrentIndex = idx === -1 ? state.currentIndex : idx;
+      const newList = childState.map((item, i) =>
+        ({...item, selected: i === newCurrentIndex})
+      );
       return {
-        currentIndex: idx === -1 ? state.currentIndex : idx,
-        list: childState,
+        currentIndex: newCurrentIndex,
+        list: newList,
       };
     }
   }
@@ -57,17 +54,11 @@ export default function RadioApp(sources: Sources): Sinks {
     get: state => state.list[state.currentIndex],
     set: (state, childState) => ({
       ...state,
-      list: state.list.map((val: any, i: number) =>
-        i === state.currentIndex ? {...val, ...childState} : val
+      list: state.list.map((item: any, i: number) =>
+        i === state.currentIndex ? {...item, ...childState} : item
       ),
     })
   }
-
-  setTimeout(() => {
-    sources.onion.state$.addListener({
-      next: s => console.log(s),
-    })
-  }, 500)
 
   const listSinks: Sinks = isolate(List, {onion: listLens})(sources);
   const listVDom = listSinks.DOM;

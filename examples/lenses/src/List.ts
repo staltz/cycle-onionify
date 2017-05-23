@@ -1,7 +1,7 @@
 import xs, {Stream} from 'xstream';
 import isolate from '@cycle/isolate';
 import {div, VNode, DOMSource} from '@cycle/dom';
-import {StateSource, pickCombine, pickMerge, collection, Lens} from 'cycle-onionify';
+import {StateSource, pickCombine, pickMerge, collection} from 'cycle-onionify';
 import Item, {State as ItemState, Sources as ItemSources} from './Item';
 
 export type State = Array<ItemState & {key: string}>;
