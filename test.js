@@ -35,22 +35,6 @@ test('inner function receives StateSource under sources.onion', t => {
   wrapped({});
 });
 
-test('inner function receives StateSource under sources.whatever', t => {
-  t.plan(6);
-  function main(sources) {
-    t.truthy(sources.whatever);
-    t.is(typeof sources.whatever, 'object');
-    t.is(typeof sources.whatever.state$, 'object');
-    t.is(typeof sources.whatever.select, 'function');
-    t.is(typeof sources.whatever.isolateSource, 'function');
-    t.is(typeof sources.whatever.isolateSink, 'function');
-    return {};
-  }
-
-  const wrapped = onionify(main, 'whatever');
-  wrapped({});
-});
-
 test('inner function takes StateSource, sends reducers to sink', t => {
   t.plan(3);
 

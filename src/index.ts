@@ -162,26 +162,20 @@ export function isolateSink<T, R>(
 export class StateSource<T> {
   public state$: MemoryStream<T>;
   private _state$: MemoryStream<T>;
-  private _name: string | null;
 
-  constructor(stream: Stream<any>, name: string | null) {
-    this._name = name;
+  constructor(stream: Stream<any>) {
     this._state$ = stream
       .filter(s => typeof s !== 'undefined')
       .compose(dropRepeats())
       .remember();
     this.state$ = adapt(this._state$);
-    if (!name) {
-      return;
-    }
-    (this._state$ as MemoryStream<T> & DevToolEnabledSource)._isCycleSource = name;
+    (this._state$ as MemoryStream<T> & DevToolEnabledSource)._isCycleSource = 'onion';
   }
 
   public select<R>(scope: Scope<T, R>): StateSource<R> {
     const get = makeGetter(scope);
     return new StateSource<R>(
       this._state$.map(get),
-      null,
     );
   }
 
@@ -219,17 +213,16 @@ export type MainOnionified<T, So extends OSo<T>, Si extends OSi<T>> =
   MainFn<Omit<So, 'onion'>, Omit<Si, 'onion'>>;
 
 export default function onionify<T, So extends OSo<T>, Si extends OSi<T>>(
-                                main: MainFn<So, Si>,
-                                name: string = 'onion'): MainOnionified<T, So, Si> {
+                                main: MainFn<So, Si>): MainOnionified<T, So, Si> {
   return function mainOnionified(sources: So): Si {
     const reducerMimic$ = xs.create<Reducer<T>>();
     const state$ = reducerMimic$
       .fold((state, reducer) => reducer(state), void 0 as (T | undefined))
       .drop(1);
-    sources[name as any] = new StateSource<any>(state$, name) as any;
+    sources.onion = new StateSource<any>(state$) as any;
     const sinks = main(sources as So);
-    if (sinks[name]) {
-      const stream$ = xs.fromObservable<Reducer<T>>(sinks[name]);
+    if (sinks.onion) {
+      const stream$ = xs.fromObservable<Reducer<T>>(sinks.onion);
       reducerMimic$.imitate(stream$);
     }
     return sinks;
