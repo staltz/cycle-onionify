@@ -70,28 +70,25 @@ function view(listVNode$: Stream<VNode>, counterVNode$: Stream<VNode>): Stream<V
     );
 }
 
-export default function TodoApp(sources: Sources): Sinks {
-  const listLens: Lens<State, ListState> = {
-    get(state: State) {
-      return state.list.map(item =>
-        state.counter.count !== item.count ?
-          ({...item, count: state.counter.count}) :
-          item
-      );
-    },
-    set(state: State, listState: ListState) {
-      const count = state.counter ?
-        (listState.find(item => item.count !== state.counter.count) || state.counter).count :
-        0;
-      return {
-        counter: {
-          count: count
-        },
-        list: listState,
-      };
-    },
-  };
+const listLens: Lens<State, ListState> = {
+  get(state: State) {
+    return state.list;
+  },
+  set(state: State, listState: ListState) {
+    const count = state.counter ?
+      (listState.find(item => item.count !== state.counter.count) || state.counter).count :
+      0;
+    const newList = listState.map(item => ({...item, count}));
+    return {
+      counter: {
+        count: count
+      },
+      list: newList,
+    };
+  },
+};
 
+export default function TodoApp(sources: Sources): Sinks {
   const listSinks: Sinks = isolate(List, {onion: listLens})(sources);
   const counterSinks: Sinks = isolate(Counter, {onion: 'counter'})(sources);
   const actions = intent(sources.DOM);
