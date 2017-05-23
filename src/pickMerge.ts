@@ -1,4 +1,4 @@
-import xs, {Stream, InternalListener, OutSender, Operator, NO} from 'xstream';
+import xs, {Stream, InternalListener, OutSender, Operator} from 'xstream';
 import {Instances} from './index';
 
 class PickMergeListener<Si, T> implements InternalListener<T>, OutSender<T> {
@@ -120,13 +120,13 @@ class PickMerge<Si, T> implements Operator<Instances<Si>, T> {
 
   _e(err: any) {
     const u = this.out;
-    if (u === NO) return;
+    if (u === null) return;
     u._e(err);
   }
 
   _c() {
     const u = this.out;
-    if (u === NO) return;
+    if (u === null) return;
     u._c();
   }
 }
