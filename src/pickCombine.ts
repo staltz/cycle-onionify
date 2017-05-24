@@ -7,7 +7,6 @@ class PickCombineListener<Si, T> implements InternalListener<T>, OutSender<Array
   public p: PickCombine<Si, T>;
   public val: T;
   public ins: Stream<T>;
-  private c: boolean;
 
   constructor(key: string, out: Stream<Array<T>>, p: PickCombine<Si, T>, ins: Stream<T>) {
     this.key = key;
@@ -15,7 +14,6 @@ class PickCombineListener<Si, T> implements InternalListener<T>, OutSender<Array
     this.p = p;
     this.val = NO as any;
     this.ins = ins;
-    this.c = false;
   }
 
   _n(t: T): void {
@@ -36,20 +34,6 @@ class PickCombineListener<Si, T> implements InternalListener<T>, OutSender<Array
   }
 
   _c(): void {
-    const p = this.p, out = this.out;
-    this.c = true;
-    if (out === null) {
-      return;
-    }
-    const n = p.inst.arr.length;
-    const ils = p.ils;
-    const instArr = p.inst.arr;
-    for (let i = 0; i < n; ++i) {
-      if ((ils.get(instArr[i]._key) as any).c === false) {
-        return;
-      }
-    }
-    out._c();
   }
 }
 

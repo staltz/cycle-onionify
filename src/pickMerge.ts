@@ -5,13 +5,11 @@ class PickMergeListener<Si, T> implements InternalListener<T>, OutSender<T> {
   public ins: Stream<T>;
   public out: Stream<T>;
   public p: PickMerge<Si, T>;
-  private c: boolean;
 
   constructor(out: Stream<T>, p: PickMerge<Si, T>, ins: Stream<T>) {
     this.ins = ins;
     this.out = out;
     this.p = p;
-    this.c = false;
   }
 
   _n(t: T): void {
@@ -31,20 +29,6 @@ class PickMergeListener<Si, T> implements InternalListener<T>, OutSender<T> {
   }
 
   _c(): void {
-    const p = this.p, out = this.out;
-    this.c = true;
-    if (out === null) {
-      return;
-    }
-    const n = p.inst.arr.length;
-    const ils = p.ils;
-    const instArr = p.inst.arr;
-    for (let i = 0; i < n; ++i) {
-      if ((ils.get(instArr[i]._key) as any).c === false) {
-        return;
-      }
-    }
-    out._c();
   }
 }
 
