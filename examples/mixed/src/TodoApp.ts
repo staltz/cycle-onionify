@@ -72,7 +72,7 @@ function view(listVNode$: Stream<VNode>, counterVNode$: Stream<VNode>): Stream<V
 
 const listLens: Lens<State, ListState> = {
   get(state: State) {
-    return state.list;
+    return state.list.map((item) => ({...item, count: state.counter.count}))
   },
   set(state: State, listState: ListState) {
     const count = state.counter ?
