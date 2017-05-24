@@ -214,7 +214,7 @@ export type MainOnionified<T, So extends OSo<T>, Si extends OSi<T>> =
 
 export default function onionify<T, So extends OSo<T>, Si extends OSi<T>>(
                                 main: MainFn<So, Si>): MainOnionified<T, So, Si> {
-  return function mainOnionified(sources: So): Si {
+  return function mainOnionified(sources: Omit<So, 'onion'>): Omit<Si, 'onion'> {
     const reducerMimic$ = xs.create<Reducer<T>>();
     const state$ = reducerMimic$
       .fold((state, reducer) => reducer(state), void 0 as (T | undefined))
