@@ -148,7 +148,6 @@ export class StateSource<T> {
     const array$ = this._state$;
     const name = this._name;
 
-    debugger;
     const collection$ = array$.fold((acc: Instances<Si>, nextStateArray: any) => {
       const dict = acc.dict;
       const nextInstArray = Array(nextStateArray.length) as Array<Si & {_key: string}>;
