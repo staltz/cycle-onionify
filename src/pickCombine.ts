@@ -44,6 +44,7 @@ class PickCombine<Si, R> implements Operator<Instances<Si>, Array<R>> {
   public sel: string;
   public ils: Map<string, PickCombineListener<Si, R>>;
   public inst: Instances<Si>;
+  public prevOutArr: Array<R> | null;
 
   constructor(sel: string, ins: Stream<Instances<Si>>) {
     this.ins = ins;
@@ -51,6 +52,7 @@ class PickCombine<Si, R> implements Operator<Instances<Si>, Array<R>> {
     this.out = null as any;
     this.ils = new Map();
     this.inst = null as any;
+    this.prevOutArr = null;
   }
 
   _start(out: Stream<Array<R>>): void {
@@ -70,26 +72,39 @@ class PickCombine<Si, R> implements Operator<Instances<Si>, Array<R>> {
     this.out = null as any;
     this.ils = new Map();
     this.inst = null as any;
+    this.prevOutArr = null;
   }
 
   up(): void {
     const arr = this.inst.arr;
     const n = arr.length;
-    const outArr: Array<R> = Array(n);
     const ils = this.ils;
-    for (let i = 0; i < n; ++i) {
-      const sinks = arr[i];
-      const key = sinks._key as any as string;
-      if (!ils.has(key)) {
-        return;
+    const prevOutArr = this.prevOutArr;
+    if (!prevOutArr || n !== prevOutArr.length) {
+      const outArr: Array<R> = Array(n);
+      for (let i = 0; i < n; ++i) {
+        const sinks = arr[i];
+        const key = sinks._key as any as string;
+        if (!ils.has(key)) {
+          return;
+        }
+        const val = (ils.get(key) as any).val;
+        if (val === NO) {
+          return;
+        }
+        outArr[i] = val;
       }
-      const val = (ils.get(key) as any).val;
-      if (val === NO) {
-        return;
+      this.prevOutArr = outArr;
+      this.out._n(outArr);
+    } else {
+      for (let i = 0; i < n; ++i) {
+        const val = (ils.get(arr[i]._key) as PickCombineListener<any, any>).val;
+        if (prevOutArr[i] !== val) {
+          prevOutArr[i] = val;
+        }
       }
-      outArr[i] = val;
+      this.out._n(prevOutArr);
     }
-    this.out._n(outArr);
   }
 
   _n(inst: Instances<Si>): void {
