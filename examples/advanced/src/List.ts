@@ -1,7 +1,7 @@
 import xs, {Stream} from 'xstream';
 import isolate from '@cycle/isolate';
 import {div, span, input, button, ul, VNode, DOMSource} from '@cycle/dom';
-import {StateSource, pickCombine, pickMerge, collection} from 'cycle-onionify';
+import {StateSource, pickCombine, pickMerge} from 'cycle-onionify';
 import Item, {State as ItemState, Sources as ItemSources} from './Item';
 
 export type State = Array<ItemState>;
@@ -19,7 +19,7 @@ export type Sinks = {
 }
 
 export default function List(sources: Sources): Sinks {
-  const instances$ = collection(Item, sources, (state: ItemState) => state.key);
+  const instances$ = sources.onion.asCollection(Item, sources);
 
   const vdom$ = instances$
     .compose(pickCombine('DOM'))

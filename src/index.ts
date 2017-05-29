@@ -57,43 +57,6 @@ function instanceLens(getKey: any, key: string): Lens<Array<any>, any> {
   };
 }
 
-export function collection<Si>(itemComp: (so: any) => Si,
-                               sources: any,
-                               getKey: any = defaultGetKey): Stream<Instances<Si>> {
-  const array$ = sources.onion.state$;
-
-  const collection$ = array$.fold((acc: Instances<Si>, nextStateArray: any) => {
-    const dict = acc.dict;
-    const nextInstArray = Array(nextStateArray.length) as Array<Si & {_key: string}>;
-
-    const nextKeys = new Set<string>();
-    // add
-    for (let i = 0, n = nextStateArray.length; i < n; ++i) {
-      const key = getKey(nextStateArray[i]);
-      nextKeys.add(key);
-      if (dict.has(key)) {
-        nextInstArray[i] = dict.get(key) as any;
-      } else {
-        const scopes = {'*': '$' + key, onion: instanceLens(getKey, key)};
-        const sinks = isolate(itemComp, scopes)(sources);
-        dict.set(key, sinks);
-        nextInstArray[i] = sinks;
-      }
-      nextInstArray[i]._key = key;
-    }
-    // remove
-    dict.forEach((_, key) => {
-      if (!nextKeys.has(key)) {
-        dict.delete(key);
-      }
-    });
-    nextKeys.clear();
-    return {dict: dict, arr: nextInstArray};
-  }, {dict: new Map(), arr: []} as Instances<Si>);
-
-  return collection$;
-}
-
 function makeGetter<T, R>(scope: Scope<T, R>): Getter<T, R> {
   if (typeof scope === 'string' || typeof scope === 'number') {
     return function lensGet(state) {
@@ -162,21 +125,60 @@ export function isolateSink<T, R>(
 export class StateSource<T> {
   public state$: MemoryStream<T>;
   private _state$: MemoryStream<T>;
+  private _name: string;
 
-  constructor(stream: Stream<any>) {
+  constructor(stream: Stream<any>, name: string) {
     this._state$ = stream
       .filter(s => typeof s !== 'undefined')
       .compose(dropRepeats())
       .remember();
+    this._name = name;
     this.state$ = adapt(this._state$);
-    (this._state$ as MemoryStream<T> & DevToolEnabledSource)._isCycleSource = 'onion';
+    (this._state$ as MemoryStream<T> & DevToolEnabledSource)._isCycleSource = name;
   }
 
   public select<R>(scope: Scope<T, R>): StateSource<R> {
     const get = makeGetter(scope);
-    return new StateSource<R>(
-      this._state$.map(get),
-    );
+    return new StateSource<R>(this._state$.map(get), this._name);
+  }
+
+  public asCollection<Si>(itemComp: (so: any) => Si,
+                          sources: any,
+                          getKey: any = defaultGetKey): Stream<Instances<Si>> {
+    const array$ = this._state$;
+    const name = this._name;
+
+    debugger;
+    const collection$ = array$.fold((acc: Instances<Si>, nextStateArray: any) => {
+      const dict = acc.dict;
+      const nextInstArray = Array(nextStateArray.length) as Array<Si & {_key: string}>;
+
+      const nextKeys = new Set<string>();
+      // add
+      for (let i = 0, n = nextStateArray.length; i < n; ++i) {
+        const key = getKey(nextStateArray[i]);
+        nextKeys.add(key);
+        if (dict.has(key)) {
+          nextInstArray[i] = dict.get(key) as any;
+        } else {
+          const scopes = {'*': '$' + key, [name]: instanceLens(getKey, key)};
+          const sinks = isolate(itemComp, scopes)(sources);
+          dict.set(key, sinks);
+          nextInstArray[i] = sinks;
+        }
+        nextInstArray[i]._key = key;
+      }
+      // remove
+      dict.forEach((_, key) => {
+        if (!nextKeys.has(key)) {
+          dict.delete(key);
+        }
+      });
+      nextKeys.clear();
+      return {dict: dict, arr: nextInstArray};
+    }, {dict: new Map(), arr: []} as Instances<Si>);
+
+    return collection$;
   }
 
   public isolateSource = isolateSource;
@@ -213,16 +215,17 @@ export type MainOnionified<T, So extends OSo<T>, Si extends OSi<T>> =
   MainFn<Omit<So, 'onion'>, Omit<Si, 'onion'>>;
 
 export default function onionify<T, So extends OSo<T>, Si extends OSi<T>>(
-                                main: MainFn<So, Si>): MainOnionified<T, So, Si> {
+                                main: MainFn<So, Si>,
+                                name: string = 'onion'): MainOnionified<T, So, Si> {
   return function mainOnionified(sources: Omit<So, 'onion'>): Omit<Si, 'onion'> {
     const reducerMimic$ = xs.create<Reducer<T>>();
     const state$ = reducerMimic$
       .fold((state, reducer) => reducer(state), void 0 as (T | undefined))
       .drop(1);
-    sources.onion = new StateSource<any>(state$) as any;
+    sources[name] = new StateSource<any>(state$, name);
     const sinks = main(sources as So);
-    if (sinks.onion) {
-      const stream$ = xs.fromObservable<Reducer<T>>(sinks.onion);
+    if (sinks[name]) {
+      const stream$ = xs.fromObservable<Reducer<T>>(sinks[name]);
       reducerMimic$.imitate(stream$);
     }
     return sinks;

@@ -5,7 +5,6 @@ import isolate from '@cycle/isolate';
 import onionify, {
   pickCombine,
   pickMerge,
-  collection,
   isolateSource,
   isolateSink,
 } from './lib/index';
@@ -32,6 +31,22 @@ test('inner function receives StateSource under sources.onion', t => {
   }
 
   const wrapped = onionify(main);
+  wrapped({});
+});
+
+test('inner function receives StateSource under sources.whatever', t => {
+  t.plan(6);
+  function main(sources) {
+    t.truthy(sources.whatever);
+    t.is(typeof sources.whatever, 'object');
+    t.is(typeof sources.whatever.state$, 'object');
+    t.is(typeof sources.whatever.select, 'function');
+    t.is(typeof sources.whatever.isolateSource, 'function');
+    t.is(typeof sources.whatever.isolateSink, 'function');
+    return {};
+  }
+
+  const wrapped = onionify(main, 'whatever');
   wrapped({});
 });
 
@@ -580,7 +595,7 @@ test.cb('should work with collection() and an isolated list children', t => {
   }
 
   function List(sources) {
-    const instances$ = collection(Child, sources);
+    const instances$ = sources.onion.asCollection(Child, sources);
     const reducer$ = instances$.compose(pickMerge('onion'));
      return {
        onion: reducer$,
@@ -659,7 +674,7 @@ test.cb('should work with collection() and a custom item key', t => {
   }
 
   function List(sources) {
-    const instances$ = collection(Child, sources, s => s.id);
+    const instances$ = sources.onion.asCollection(Child, sources, s => s.id);
     const reducer$ = instances$.compose(pickMerge('onion'));
      return {
        onion: reducer$,
