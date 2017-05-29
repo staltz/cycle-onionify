@@ -22,9 +22,11 @@ function main(sources) {
   const initReducer$ = xs.of(function initReducer() {
     return {count: 0};
   });
+
   const updateReducer$ = action$.map(num => function updateReducer(prevState) {
     return {count: prevState.count + num};
   });
+
   const reducer$ = xs.merge(initReducer$, updateReducer$);
 
   return {
