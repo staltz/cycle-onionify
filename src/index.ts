@@ -57,6 +57,11 @@ function instanceLens(getKey: any, key: string): Lens<Array<any>, any> {
   };
 }
 
+const identityLens = {
+  get: <T>(outer: T) => outer,
+  set: <T>(outer: T, inner: T) => inner,
+};
+
 function makeGetter<T, R>(scope: Scope<T, R>): Getter<T, R> {
   if (typeof scope === 'string' || typeof scope === 'number') {
     return function lensGet(state) {
@@ -188,33 +193,41 @@ export class StateSource<T> {
     const array$ = this._state$;
     const name = this._name;
 
-    const collection$ = array$.fold((acc: Instances<Si>, nextStateArray: any) => {
+    const collection$ = array$.fold((acc: Instances<Si>, nextState: Array<any> | any) => {
       const dict = acc.dict;
-      const nextInstArray = Array(nextStateArray.length) as Array<Si & {_key: string}>;
-
-      const nextKeys = new Set<string>();
-      // add
-      for (let i = 0, n = nextStateArray.length; i < n; ++i) {
-        const key = getKey(nextStateArray[i]);
-        nextKeys.add(key);
-        if (dict.has(key)) {
-          nextInstArray[i] = dict.get(key) as any;
-        } else {
-          const scopes = {'*': '$' + key, [name]: instanceLens(getKey, key)};
-          const sinks = isolate(itemComp, scopes)(sources);
-          dict.set(key, sinks);
-          nextInstArray[i] = sinks;
+      if (Array.isArray(nextState)) {
+        const nextInstArray = Array(nextState.length) as Array<Si & {_key: string}>;
+        const nextKeys = new Set<string>();
+        // add
+        for (let i = 0, n = nextState.length; i < n; ++i) {
+          const key = getKey(nextState[i]);
+          nextKeys.add(key);
+          if (dict.has(key)) {
+            nextInstArray[i] = dict.get(key) as any;
+          } else {
+            const scopes = {'*': '$' + key, [name]: instanceLens(getKey, key)};
+            const sinks = isolate(itemComp, scopes)(sources);
+            dict.set(key, sinks);
+            nextInstArray[i] = sinks;
+          }
+          nextInstArray[i]._key = key;
         }
-        nextInstArray[i]._key = key;
+        // remove
+        dict.forEach((_, key) => {
+          if (!nextKeys.has(key)) {
+            dict.delete(key);
+          }
+        });
+        nextKeys.clear();
+        return {dict: dict, arr: nextInstArray};
+      } else {
+        dict.clear();
+        const key = getKey(nextState);
+        const scopes = {'*': '$' + key, [name]: identityLens};
+        const sinks = isolate(itemComp, scopes)(sources);
+        dict.set(key, sinks);
+        return {dict: dict, arr: [sinks]}
       }
-      // remove
-      dict.forEach((_, key) => {
-        if (!nextKeys.has(key)) {
-          dict.delete(key);
-        }
-      });
-      nextKeys.clear();
-      return {dict: dict, arr: nextInstArray};
     }, {dict: new Map(), arr: []} as Instances<Si>);
 
     return collection$;

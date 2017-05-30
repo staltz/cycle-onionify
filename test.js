@@ -730,3 +730,68 @@ test.cb('should work with collection() and a custom item key', t => {
   const wrapped = onionify(Main);
   wrapped({});
 });
+
+test.cb('should work with asCollection() on an object, not an array', t => {
+  t.plan(3);
+
+  function Child(sources) {
+    const defaultReducer$ = xs.of(prev => {
+      if (typeof prev.val === 'number') {
+        return prev;
+      } else {
+        return {key: prev.key, val: 10};
+      }
+    });
+
+    return {
+      onion: defaultReducer$,
+    };
+  }
+
+  function Wrapper(sources) {
+    const instances$ = sources.onion.asCollection(Child, sources);
+    const reducer$ = instances$.compose(pickMerge('onion'));
+     return {
+       onion: reducer$,
+     }
+  }
+
+  function Main(sources) {
+    const expected = [
+      {key: 'a', val: null},
+      {key: 'a', val: 10},
+    ];
+
+    sources.onion.state$.addListener({
+      next(x) {
+        t.deepEqual(x.wrap, expected.shift());
+        if (expected.length === 0) {
+          t.pass();
+          t.end();
+        }
+      },
+      error(e) {
+        t.fail(e.message);
+      },
+      complete() {
+        t.fail('complete should not be called');
+      },
+    });
+
+    const wrapperSinks = isolate(Wrapper, 'wrap')(sources);
+    const wrapperReducer$ = wrapperSinks.onion;
+
+    const initReducer$ = xs.of(function initReducer(prevState) {
+      return { wrap: {key: 'a', val: null} };
+    });
+
+    const reducer$ = xs.merge(initReducer$, wrapperReducer$);
+
+    return {
+      onion: reducer$,
+    };
+  }
+
+  const wrapped = onionify(Main);
+  wrapped({});
+});
