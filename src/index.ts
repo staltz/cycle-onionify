@@ -137,11 +137,51 @@ export class StateSource<T> {
     (this._state$ as MemoryStream<T> & DevToolEnabledSource)._isCycleSource = name;
   }
 
+  /**
+   * Selects a part (or scope) of the state object and returns a new StateSource
+   * dynamically representing that selected part of the state.
+   *
+   * @param {string|number|lens} scope as a string, this argument represents the
+   * property you want to select from the state object. As a number, this
+   * represents the array index you want to select from the state array. As a
+   * lens object (an object with get() and set()), this argument represents any
+   * custom way of selecting something from the state object.
+   */
   public select<R>(scope: Scope<T, R>): StateSource<R> {
     const get = makeGetter(scope);
     return new StateSource<R>(this._state$.map(get), this._name);
   }
 
+  /**
+   * Builds a collection of many child components that follow the dynamic shape
+   * of this StateSource.
+   *
+   * Typically you use this function when the state$ emits an arrays, and each
+   * entry in the array is an object holding the state for each child component.
+   * When the state array grows, the collection will automatically instantiate
+   * a new child component. Similarly, when the state array gets smaller, the
+   * collection will handle removal of the child component instances.
+   *
+   * This function returns a stream of "instances", which are a lower-level
+   * data structure that should only be consumed with `pickCombine` and
+   * `pickMerge`.
+   *
+   * As arguments, you pass the child Cycle.js component function to use for
+   * each entry in the array, and the sources object to give to as input to each
+   * child component. Each entry in the array is expected to be an object with
+   * at least `key` as a property, which should uniquely identify that child. If
+   * these objects have a different unique identifier like `id`, you can tell
+   * that to `asCollection` in the third argument: a function that takes the
+   * child object state, and returns the unique identifier. By default, this
+   * third argument is the function `obj => obj.key`.
+   *
+   * @param {Function} itemComp a function that takes `sources` as input and
+   * returns `sinks`, representing the component to be used for each child in
+   * the collection.
+   * @param {Object} sources the object with sources to pass as input for each
+   * child component.
+   * @param getKey
+   */
   public asCollection<Si>(itemComp: (so: any) => Si,
                           sources: any,
                           getKey: any = defaultGetKey): Stream<Instances<Si>> {
@@ -213,6 +253,24 @@ export type OSi<T> = {onion: Stream<Reducer<T>>};
 export type MainOnionified<T, So extends OSo<T>, Si extends OSi<T>> =
   MainFn<Omit<So, 'onion'>, Omit<Si, 'onion'>>;
 
+/**
+ * Given a Cycle.js component that expects an onion state *source* and will
+ * output onion reducer *sink*, this function sets up the state management
+ * mechanics to accumulate state over time and provide the state source. It
+ * returns a Cycle.js component which wraps the component given as input.
+ * Essentially, it hooks up the onion sink with the onion source as a cycle.
+ *
+ * Optionally, you can pass a custom name for the onion channel. By default,
+ * the name is 'onion' in sources and sinks, but you can change that to be
+ * whatever string you wish.
+ *
+ * @param {Function} main a function that takes `sources` as input and outputs
+ * `sinks`.
+ * @param {String} name an optional string for the custom name given to the
+ * onion channel. By default, it is 'onion'.
+ * @return {Function} a component that wraps the main function given as input,
+ * adding state accumulation logic to it.
+ */
 export default function onionify<T, So extends OSo<T>, Si extends OSi<T>>(
                                 main: MainFn<So, Si>,
                                 name: string = 'onion'): MainOnionified<T, So, Si> {

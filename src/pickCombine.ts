@@ -159,6 +159,18 @@ class PickCombine<Si, R> implements Operator<Instances<Si>, Array<R>> {
   }
 }
 
+/**
+ * Like `combine` in xstream, this operator combines multiple streams together,
+ * but picks those streams from a stream of instances.
+ *
+ * The instances data structure has a sinks object for each instance. Use the
+ * `selector` string to pick a stream from the sinks object of each instance,
+ * then pickCombine will combine all those picked streams.
+ *
+ * @param {String} selector a name of a channel in a sinks object belonging to
+ * each component in the collection of instances.
+ * @return {Function} an operator to be used with xstream's `compose` method.
+ */
 export function pickCombine(selector: string) {
   return function pickCombineOperator(inst$: Stream<Instances<any>>): Stream<Array<any>> {
     return new Stream(new PickCombine(selector, inst$));

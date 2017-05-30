@@ -115,6 +115,18 @@ class PickMerge<Si, T> implements Operator<Instances<Si>, T> {
   }
 }
 
+/**
+ * Like `merge` in xstream, this operator blends multiple streams together, but
+ * picks those streams from a stream of instances.
+ *
+ * The instances data structure has a sinks object for each instance. Use the
+ * `selector` string to pick a stream from the sinks object of each instance,
+ * then pickMerge will merge all those picked streams.
+ *
+ * @param {String} selector a name of a channel in a sinks object belonging to
+ * each component in the collection of instances.
+ * @return {Function} an operator to be used with xstream's `compose` method.
+ */
 export function pickMerge(selector: string) {
   return function pickMergeOperator(inst$: Stream<Instances<any>>): Stream<any> {
     return new Stream(new PickMerge(selector, inst$));
