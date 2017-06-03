@@ -5,6 +5,7 @@ import isolate from '@cycle/isolate';
 import {adapt} from '@cycle/run/lib/adapt';
 export {pickCombine} from './pickCombine';
 export {pickMerge} from './pickMerge';
+import {pickMerge} from './pickMerge';
 
 export type MainFn<So, Si> = (sources: So) => Si;
 export type Reducer<T> = (state: T | undefined) => T | undefined;
@@ -189,7 +190,7 @@ export class StateSource<T> {
    */
   public asCollection<Si>(itemComp: (so: any) => Si,
                           sources: any,
-                          getKey: any = defaultGetKey): Stream<Instances<Si>> {
+                          getKey: any = defaultGetKey): CollectionSource<Si> {
     const array$ = this._state$;
     const name = this._name;
 
@@ -230,11 +231,25 @@ export class StateSource<T> {
       }
     }, {dict: new Map(), arr: []} as Instances<Si>);
 
-    return collection$;
+    return new CollectionSource<Si>(collection$, Object.keys(sources));
   }
 
   public isolateSource = isolateSource;
   public isolateSink = isolateSink;
+}
+
+export type Transformer<Si> = (name: string) => (s: Stream<Instances<Si>>) => Stream<any>;
+export type ToSinksConfig<Si> = { '*': Transformer<Si> } & TransformerConfig<Si> | { '*': Transformer<Si> }; //Don't know why this | is needed
+export type TransformerConfig<Si> = { [k in keyof Si]?: Transformer<Si> };
+
+export class CollectionSource<Si> {
+  constructor(private _ins$: Stream<Instances<Si>>, private _srcs: string[]) { }
+
+  public toSinks<T>(config: ToSinksConfig<Si> = { '*':  pickMerge }) : Si {
+    return this._srcs
+      .map(n => ({ [n]: this._ins$.compose((config[n] || config['*'])(n)) }))
+      .reduce(Object.assign, {});
+  }
 }
 
 /**
