@@ -239,14 +239,15 @@ export class StateSource<T> {
 }
 
 export type Transformer<Si> = (name: string) => (s: Stream<Instances<Si>>) => Stream<any>;
-export type ToSinksConfig<Si> = { '*': Transformer<Si> } & TransformerConfig<Si> | { '*': Transformer<Si> }; //Don't know why this | is needed
+export type ToSinksConfig<Si> = { '*': Transformer<Si> } & TransformerConfig<Si> | { '*': Transformer<Si> }; //Bug in Typescript: https://github.com/Microsoft/TypeScript/issues/16251
 export type TransformerConfig<Si> = { [k in keyof Si]?: Transformer<Si> };
 
 export class CollectionSource<Si> {
   constructor(private _ins$: Stream<Instances<Si>>, private _srcs: string[]) { }
 
   public toSinks<T>(config: ToSinksConfig<Si> = { '*':  pickMerge }) : Si {
-    return this._srcs
+    return this._srcs.concat(Object.keys(config).filter(e => e !== '*'))
+      .filter((v, i, arr) => arr.indexOf(v) === i)
       .map(n => ({ [n]: this._ins$.compose((config[n] || config['*'])(n)) }))
       .reduce(Object.assign, {});
   }
