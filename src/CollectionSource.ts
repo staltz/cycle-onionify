@@ -5,7 +5,7 @@ import {pickCombine} from './pickCombine';
 import {Instances} from './types';
 
 export class CollectionSource<Si> {
-  constructor(private _ins$: Stream<Instances<Si>>, private _srcs: string[]) { }
+  constructor(private _ins$: Stream<Instances<Si>>) { }
 
   /**
    * Like `merge` in xstream, this operator blends multiple streams together, but

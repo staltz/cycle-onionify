@@ -216,7 +216,7 @@ export class StateSource<T> {
       }
     }, {dict: new Map(), arr: []} as Instances<Si>);
 
-    return new CollectionSource<Si>(collection$, Object.keys(sources));
+    return new CollectionSource<Si>(collection$);
   }
 
   public isolateSource = isolateSource;
