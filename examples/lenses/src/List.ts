@@ -19,14 +19,12 @@ export type Sinks = {
 }
 
 export default function List(sources: Sources): Sinks {
-  const items$ = sources.onion.asCollection(Item, sources);
+  const itemsSource = sources.onion.asCollection(Item, sources);
 
-  const vdom$ = items$
-    .compose(pickCombine('DOM'))
+  const vdom$ = itemsSource.pickCombine('DOM')
     .map(itemVNodes => div({style: {marginTop: '20px'}}, itemVNodes));
 
-  const reducer$ = items$
-    .compose(pickMerge('onion'));
+  const reducer$ = itemsSource.pickMerge('onion');
 
   return {
     DOM: vdom$,
