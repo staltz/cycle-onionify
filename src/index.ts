@@ -3,9 +3,10 @@ import xs, {Stream, MemoryStream, InternalListener, OutSender, Operator} from 'x
 import dropRepeats from 'xstream/extra/dropRepeats';
 import isolate from '@cycle/isolate';
 import {adapt} from '@cycle/run/lib/adapt';
-export {pickCombine} from './pickCombine';
-export {pickMerge} from './pickMerge';
 import {pickMerge} from './pickMerge';
+import {pickCombine} from './pickCombine';
+export {pickMerge} from './pickMerge';
+export {pickCombine} from './pickCombine';
 
 export type MainFn<So, Si> = (sources: So) => Si;
 export type Reducer<T> = (state: T | undefined) => T | undefined;
@@ -159,18 +160,17 @@ export class StateSource<T> {
   }
 
   /**
-   * Builds a collection of many child components that follow the dynamic shape
-   * of this StateSource.
+   * Treats the state in this StateSource as a dynamic collection of many child
+   * components, returning a CollectionSource.
    *
-   * Typically you use this function when the state$ emits an arrays, and each
+   * Typically you use this function when the state$ emits arrays, and each
    * entry in the array is an object holding the state for each child component.
    * When the state array grows, the collection will automatically instantiate
    * a new child component. Similarly, when the state array gets smaller, the
-   * collection will handle removal of the child component instances.
+   * collection will handle removal of the corresponding child component.
    *
-   * This function returns a stream of "instances", which are a lower-level
-   * data structure that should only be consumed with `pickCombine` and
-   * `pickMerge`.
+   * This function returns a CollectionSource, which can be consumed with the
+   * operators `pickCombine` and `pickMerge` attached to it as methods.
    *
    * As arguments, you pass the child Cycle.js component function to use for
    * each entry in the array, and the sources object to give to as input to each
@@ -187,6 +187,7 @@ export class StateSource<T> {
    * @param {Object} sources the object with sources to pass as input for each
    * child component.
    * @param getKey
+   * @return {CollectionSource}
    */
   public asCollection<Si>(itemComp: (so: any) => Si,
                           sources: any,
@@ -256,6 +257,36 @@ export class CollectionSource<Si> {
     return this._srcs.concat(Object.keys(config).filter(e => e !== '*'))
       .map(n => ({ [n]: this._ins$.compose((config[n] || config['*'])(n)) }))
       .reduce(Object.assign, {});
+  }
+
+  /**
+   * Like `merge` in xstream, this operator blends multiple streams together, but
+   * picks those streams from a collection of component instances.
+   *
+   * Use the `selector` string to pick a stream from the sinks object of each
+   * component instance, then pickMerge will merge all those picked streams.
+   *
+   * @param {String} selector a name of a channel in a sinks object belonging to
+   * each component in the collection of components.
+   * @return {Function} an operator to be used with xstream's `compose` method.
+   */
+  public pickMerge(selector: string): Stream<any> {
+    return adapt(this._ins$.compose(pickMerge(selector)));
+  }
+
+  /**
+   * Like `combine` in xstream, this operator combines multiple streams together,
+   * but picks those streams from a collection of component instances.
+   *
+   * Use the `selector` string to pick a stream from the sinks object of each
+   * component instance, then pickCombine will combine all those picked streams.
+   *
+   * @param {String} selector a name of a channel in a sinks object belonging to
+   * each component in the collection of components.
+   * @return {Function} an operator to be used with xstream's `compose` method.
+   */
+  public pickCombine(selector: string): Stream<Array<any>> {
+    return adapt(this._ins$.compose(pickCombine(selector)));
   }
 }
 

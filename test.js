@@ -670,7 +670,10 @@ test.cb('should work with collection() and a custom item key', t => {
   }
 
   function List(sources) {
-    return sources.onion.asCollection(Child, sources, s => s.id).toSinks();
+    const collection = sources.onion.asCollection(Child, sources, s => s.id);
+    return {
+      onion: collection.pickMerge('onion')
+    }
   }
 
   function Main(sources) {
