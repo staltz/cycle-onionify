@@ -595,7 +595,10 @@ test.cb('should work with collection() and an isolated list children', t => {
   }
 
   function List(sources) {
-    return sources.onion.asCollection(Child, sources).toSinks();
+    const children = sources.onion.asCollection(Child, sources);
+    return {
+      onion: children.pickMerge('onion'),
+    }
   }
 
   function Main(sources) {
@@ -744,7 +747,10 @@ test.cb('should work with asCollection() on an object, not an array', t => {
   }
 
   function Wrapper(sources) {
-    return sources.onion.asCollection(Child, sources).toSinks();
+    const children = sources.onion.asCollection(Child, sources);
+    return {
+      onion: children.pickMerge('onion'),
+    }
   }
 
   function Main(sources) {
