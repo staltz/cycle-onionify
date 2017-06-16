@@ -55,8 +55,8 @@ stateB$ // Emits `{count: 300}`
 stateC$ // Emits `300`
 
 reducerC$ // Emits `function reducerC(count) { return count + 1; }`
-reducerB$ // Emits `function reducerB(visitors) { return reducerC(visitors.count); }`
-reducerA$ // Emits `function reducerA(appState) { return reducerB(appState.visitors); }`
+reducerB$ // Emits `function reducerB(visitors) { return {count: reducerC(visitors.count)}; }`
+reducerA$ // Emits `function reducerA(appState) { return {visitors: reducerB(appState.visitors)}; }`
 ```
 
 **"Fractal"** means that every component in the hierarchy is built in the same way as the top-level `main` function is built. As a consequence, there is no absolute "global" state, since every component treats its state management *relative* to its parent. The top-most component will have onionify as its parent.
