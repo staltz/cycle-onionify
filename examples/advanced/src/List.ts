@@ -19,7 +19,7 @@ export type Sinks = {
 }
 
 export default function List(sources: Sources): Sinks {
-  const itemsSource = sources.onion.asCollection(Item, sources);
+  const itemsSource = sources.onion.toCollection(Item, sources);
 
   const vdom$ = itemsSource.pickCombine('DOM')
     .map((itemVNodes: Array<VNode>) => ul(itemVNodes));
