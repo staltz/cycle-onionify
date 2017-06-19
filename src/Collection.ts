@@ -43,7 +43,7 @@ function instanceLens(getKey: any, key: string): Lens<Array<any>, any> {
   };
 }
 
-export class CollectionSource<Si> {
+export class Collection<Si> {
   private _instances$: Stream<Instances<Si>>;
 
   constructor(itemComp: (so: any) => Si,

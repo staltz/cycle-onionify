@@ -595,7 +595,7 @@ test.cb('should work with collection() and an isolated list children', t => {
   }
 
   function List(sources) {
-    const children = sources.onion.asCollection(Child, sources);
+    const children = sources.onion.toCollection(Child, sources);
     return {
       onion: children.pickMerge('onion'),
     }
@@ -673,7 +673,7 @@ test.cb('should work with collection() and a custom item key', t => {
   }
 
   function List(sources) {
-    const collection = sources.onion.asCollection(Child, sources, s => s.id);
+    const collection = sources.onion.toCollection(Child, sources, s => s.id);
     return {
       onion: collection.pickMerge('onion')
     }
@@ -747,7 +747,7 @@ test.cb('should work with asCollection() on an object, not an array', t => {
   }
 
   function Wrapper(sources) {
-    const children = sources.onion.asCollection(Child, sources);
+    const children = sources.onion.toCollection(Child, sources);
     return {
       onion: children.pickMerge('onion'),
     }

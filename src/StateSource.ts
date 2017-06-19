@@ -2,7 +2,7 @@ import xs, {Stream, MemoryStream} from 'xstream';
 import dropRepeats from 'xstream/extra/dropRepeats';
 import {DevToolEnabledSource} from '@cycle/run';
 import {adapt} from '@cycle/run/lib/adapt';
-import {CollectionSource} from './CollectionSource';
+import {Collection} from './Collection';
 import {Getter, Setter, Lens, Scope, Reducer, Instances} from './types';
 
 function updateArrayEntry<T>(array: Array<T>, scope: number | string, newVal: any): Array<T> {
@@ -106,7 +106,7 @@ export class StateSource<T> {
 
   /**
    * Treats the state in this StateSource as a dynamic collection of many child
-   * components, returning a CollectionSource.
+   * components, returning a Collection object.
    *
    * Typically you use this function when the state$ emits arrays, and each
    * entry in the array is an object holding the state for each child component.
@@ -114,7 +114,7 @@ export class StateSource<T> {
    * a new child component. Similarly, when the state array gets smaller, the
    * collection will handle removal of the corresponding child component.
    *
-   * This function returns a CollectionSource, which can be consumed with the
+   * This function returns a Collection, which can be consumed with the
    * operators `pickCombine` and `pickMerge` attached to it as methods.
    *
    * As arguments, you pass the child Cycle.js component function to use for
@@ -132,12 +132,12 @@ export class StateSource<T> {
    * @param {Object} sources the object with sources to pass as input for each
    * child component.
    * @param getKey
-   * @return {CollectionSource}
+   * @return {Collection}
    */
-  public asCollection<Si>(itemComp: (so: any) => Si,
+  public toCollection<Si>(itemComp: (so: any) => Si,
                           sources: any,
-                          getKey: any = defaultGetKey): CollectionSource<Si> {
-    return new CollectionSource<Si>(itemComp, sources, this._state$, this._name, getKey);
+                          getKey: any = defaultGetKey): Collection<Si> {
+    return new Collection<Si>(itemComp, sources, this._state$, this._name, getKey);
   }
 
   public isolateSource = isolateSource;

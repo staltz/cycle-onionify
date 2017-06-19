@@ -1,7 +1,7 @@
 import {onionify} from './onionify';
 
 export {StateSource, isolateSource, isolateSink} from './StateSource';
-export {CollectionSource} from './CollectionSource';
+export {Collection} from './Collection';
 export {Getter, Setter, Lens, Scope, Reducer, MainFn, Instances} from './types';
 
 /**
