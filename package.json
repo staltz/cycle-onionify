@@ -17,11 +17,11 @@
     "prepublish": "npm run lib"
   },
   "dependencies": {
+    "@cycle/run": "*",
+    "@cycle/isolate": ">=3",
     "xstream": ">=10"
   },
   "devDependencies": {
-    "@cycle/isolate": "2.1.0",
-    "@cycle/run": "3.0.0",
     "ava": "0.18.x",
     "typescript": "2.3.2"
   }
