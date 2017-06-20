@@ -43,6 +43,10 @@ function instanceLens(getKey: any, key: string): Lens<Array<any>, any> {
   };
 }
 
+/**
+ * An object representing all instances in a collection of components. Has the
+ * methods pickCombine and pickMerge to get the combined sinks of all instances.
+ */
 export class Instances<Si> {
   private _instances$: Stream<InternalInstances<Si>>;
 
@@ -87,6 +91,12 @@ function defaultMakeScopes(key: string) {
   return {'*': null};
 }
 
+/**
+ * Represents a collection of many child components of the same component type.
+ *
+ * Behaves somewhat like a typical Cycle.js component because you can pass
+ * sources to it using the method `build()`.
+ */
 export class Collection<S, Si> {
   protected _itemComp: (sources: any) => Si;
   protected _state$: Stream<Array<S>>;
@@ -105,14 +115,52 @@ export class Collection<S, Si> {
     this._getKey = null;
   }
 
+  /**
+   * Give an identifier to each entry in the collection, to avoid bugs when the
+   * collection grows or shrinks, as well as to improve performance of the
+   * management of instances.
+   *
+   * Example:
+   *
+   * ```js
+   * collection.uniqueBy(state => state.key)
+   * ```
+   *
+   * @param {Function} getKey a function that takes the child object state and
+   * should return the unique identifier for that child.
+   * @return {UniqueCollection} a collection of unique children
+   */
   public uniqueBy(getKey: (state: S) => string): UniqueCollection<S, Si> {
     return new UniqueCollection<S, Si>(this._itemComp, this._state$, this._name, getKey, this._makeScopes);
   }
 
+  /**
+   * Isolate each child component in the collection.
+   *
+   * Pass a function which describes how to create the isolation scopes for each
+   * child component, given that child component's unique identifier. The unique
+   * id for each child is the array index (a number) of the entry corresponding
+   * to that child.
+   *
+   * @param {Function} makeScopes a function that takes the child's unique
+   * identifier and should return the isolation scopes for that child.
+   * @return {Collection} a new collection where children will be isolated
+   */
   public isolateEach(makeScopes: MakeScopesFn): Collection<S, Si> {
     return new Collection<S, Si>(this._itemComp, this._state$, this._name, makeScopes);
   }
 
+  /**
+   * Build this collection by creating instances of each child component in the
+   * collection.
+   *
+   * Pass the sources object to be given to each child component.
+   *
+   * @param {Object} sources
+   * @return {Instances} an object represeting all instances, which has the
+   * methods pickCombine and pickMerge to get the combined sinks of all
+   * instances.
+   */
   public build(sources: any): Instances<Si> {
     const instances$ = this._state$.fold((acc: InternalInstances<Si>, nextState: Array<any> | any) => {
       const dict = acc.dict;
@@ -165,6 +213,13 @@ export class Collection<S, Si> {
   }
 }
 
+/**
+ * Represents a collection of many child components of the same component type,
+ * where each child is uniquely identified.
+ *
+ * Behaves somewhat like a typical Cycle.js component because you can pass
+ * sources to it using the method `build()`.
+ */
 export class UniqueCollection<S, Si> extends Collection<S, Si> {
   protected _getKey: ((state: S) => string);
 
@@ -177,6 +232,18 @@ export class UniqueCollection<S, Si> extends Collection<S, Si> {
     this._getKey = getKey;
   }
 
+  /**
+   * Isolate each child component in the collection.
+   *
+   * Pass a function which describes how to create the isolation scopes for each
+   * child component, given that child component's unique identifier. The unique
+   * id for each child is a string and it comes from the function you used in
+   * `uniqueBy`.
+   *
+   * @param {Function} makeScopes a function that takes the child's unique
+   * identifier and should return the isolation scopes for that child.
+   * @return {Collection} a new collection where children will be isolated
+   */
   public isolateEach(makeScopes: (key: string) => string | object): UniqueCollection<S, Si> {
     return new UniqueCollection<S, Si>(this._itemComp, this._state$, this._name, this._getKey, makeScopes);
   }

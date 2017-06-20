@@ -70,6 +70,9 @@ export function isolateSink<T, R>(
     });
 }
 
+/**
+ * Represents a piece of application state dynamically changing over time.
+ */
 export class StateSource<S> {
   public state$: MemoryStream<S>;
   private _state$: MemoryStream<S>;
@@ -102,7 +105,7 @@ export class StateSource<S> {
 
   /**
    * Treats the state in this StateSource as a dynamic collection of many child
-   * components, returning a Collection object.
+   * components of the same type, returning a Collection object.
    *
    * Typically you use this function when the state$ emits arrays, and each
    * entry in the array is an object holding the state for each child component.
@@ -110,24 +113,14 @@ export class StateSource<S> {
    * a new child component. Similarly, when the state array gets smaller, the
    * collection will handle removal of the corresponding child component.
    *
-   * This function returns a Collection, which can be consumed with the
-   * operators `pickCombine` and `pickMerge` attached to it as methods.
-   *
-   * As arguments, you pass the child Cycle.js component function to use for
-   * each entry in the array, and the sources object to give to as input to each
-   * child component. Each entry in the array is expected to be an object with
-   * at least `key` as a property, which should uniquely identify that child. If
-   * these objects have a different unique identifier like `id`, you can tell
-   * that to `asCollection` in the third argument: a function that takes the
-   * child object state, and returns the unique identifier. By default, this
-   * third argument is the function `obj => obj.key`.
+   * The input argument is the child Cycle.js component function to use for each
+   * entry in the array. This returned value is a Collection, which resembles a
+   * Cycle.js component: you can call its build(sources) method to instantiate
+   * the collection.
    *
    * @param {Function} itemComp a function that takes `sources` as input and
    * returns `sinks`, representing the component to be used for each child in
    * the collection.
-   * @param {Object} sources the object with sources to pass as input for each
-   * child component.
-   * @param getKey
    * @return {Collection}
    */
   public toCollection<T, Si>(this: StateSource<Array<T>>,
