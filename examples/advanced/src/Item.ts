@@ -4,7 +4,6 @@ import {StateSource} from 'cycle-onionify';
 
 export interface State {
   content: string;
-  key: number;
 }
 
 export type Reducer = (prev?: State) => State | undefined;
@@ -41,11 +40,11 @@ export default function Item(sources: Sources): Sinks {
   .select('.trim').events('click')
   .mapTo(function trimReducer(prevState: State): State {
     return {
+      ...prevState,
       content: prevState.content.slice(0, -1),
-      key: prevState.key
-    }
+    };
   });
-  
+
   const reducer$ = xs.merge(deleteReducer$, trimReducer$);
 
   return {

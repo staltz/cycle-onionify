@@ -27,7 +27,7 @@ export default function RadioApp(sources: Sources): Sinks {
     const currentIndex = 0;
     return {
       list: ['one', 'two', 'three', 'four'].map((item, i) =>
-        ({content: item, selected: i === currentIndex, key: `${i}`})
+        ({content: item, selected: i === currentIndex})
       ),
       currentIndex,
     };

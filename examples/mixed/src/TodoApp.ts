@@ -49,7 +49,11 @@ function model(actions: Actions): Stream<Reducer> {
       return {
         ...prevState,
         list: prevState.list.concat(
-          {content: content, count: prevState.counter.count, key: Date.now()}
+          {
+            content: content,
+            count: prevState.counter.count,
+            key: String(Date.now()),
+          }
         ),
       };
     });

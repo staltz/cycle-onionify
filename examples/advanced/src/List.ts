@@ -4,7 +4,7 @@ import {div, span, input, button, ul, VNode, DOMSource} from '@cycle/dom';
 import {StateSource, pickCombine, pickMerge} from 'cycle-onionify';
 import Item, {State as ItemState, Sources as ItemSources} from './Item';
 
-export type State = Array<ItemState>;
+export type State = Array<ItemState & {key: string}>;
 
 export type Reducer = (prev?: State) => State | undefined;
 
@@ -19,12 +19,15 @@ export type Sinks = {
 }
 
 export default function List(sources: Sources): Sinks {
-  const itemsSource = sources.onion.toCollection(Item, sources);
+  const items = sources.onion.toCollection(Item)
+    .uniqueBy(s => s.key)
+    .isolateEach(key => key)
+    .build(sources);
 
-  const vdom$ = itemsSource.pickCombine('DOM')
+  const vdom$ = items.pickCombine('DOM')
     .map((itemVNodes: Array<VNode>) => ul(itemVNodes));
 
-  const reducer$ = itemsSource.pickMerge('onion');
+  const reducer$ = items.pickMerge('onion');
 
   return {
     DOM: vdom$,

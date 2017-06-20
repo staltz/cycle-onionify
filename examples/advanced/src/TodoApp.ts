@@ -43,7 +43,7 @@ function model(actions: Actions): Stream<Reducer> {
   const addReducer$ = actions.add$
     .map(content => function addReducer(prevState: State): State {
       return {
-        list: prevState.list.concat({content, key: Date.now()}),
+        list: prevState.list.concat({content, key: String(Date.now())}),
       };
     });
 
