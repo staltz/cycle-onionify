@@ -7,7 +7,7 @@
   "dependencies": {
     "@cycle/run": "3.1",
     "@cycle/dom": "17.3",
-    "@cycle/isolate": "2.1",
+    "@cycle/isolate": "3.0",
     "@types/es6-shim": "^0.31.32",
     "cycle-onionify": "file:../..",
     "xstream": "10.8"
