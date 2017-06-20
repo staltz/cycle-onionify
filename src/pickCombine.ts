@@ -1,5 +1,5 @@
 import xs, {Stream, InternalListener, OutSender, Operator, NO} from 'xstream';
-import {Instances} from './index';
+import {InternalInstances} from './types';
 
 class PickCombineListener<Si, T> implements InternalListener<T>, OutSender<Array<T>> {
   private key: string;
@@ -37,15 +37,15 @@ class PickCombineListener<Si, T> implements InternalListener<T>, OutSender<Array
   }
 }
 
-class PickCombine<Si, R> implements Operator<Instances<Si>, Array<R>> {
+class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
   public type = 'combine';
-  public ins: Stream<Instances<Si>>;
+  public ins: Stream<InternalInstances<Si>>;
   public out: Stream<Array<R>>;
   public sel: string;
   public ils: Map<string, PickCombineListener<Si, R>>;
-  public inst: Instances<Si>;
+  public inst: InternalInstances<Si>;
 
-  constructor(sel: string, ins: Stream<Instances<Si>>) {
+  constructor(sel: string, ins: Stream<InternalInstances<Si>>) {
     this.ins = ins;
     this.sel = sel;
     this.out = null as any;
@@ -92,7 +92,7 @@ class PickCombine<Si, R> implements Operator<Instances<Si>, Array<R>> {
     this.out._n(outArr);
   }
 
-  _n(inst: Instances<Si>): void {
+  _n(inst: InternalInstances<Si>): void {
     this.inst = inst;
     const arrSinks = inst.arr;
     const ils = this.ils;
@@ -160,7 +160,7 @@ class PickCombine<Si, R> implements Operator<Instances<Si>, Array<R>> {
 }
 
 export function pickCombine(selector: string) {
-  return function pickCombineOperator(inst$: Stream<Instances<any>>): Stream<Array<any>> {
+  return function pickCombineOperator(inst$: Stream<InternalInstances<any>>): Stream<Array<any>> {
     return new Stream(new PickCombine(selector, inst$));
   };
 }

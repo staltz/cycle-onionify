@@ -1,8 +1,8 @@
 import {onionify} from './onionify';
 
 export {StateSource, isolateSource, isolateSink} from './StateSource';
-export {Collection} from './Collection';
-export {Getter, Setter, Lens, Scope, Reducer, MainFn, Instances} from './types';
+export {Collection, UniqueCollection, Instances} from './Collection';
+export {Getter, Setter, Lens, Scope, Reducer, MainFn} from './types';
 
 /**
  * Like `merge` in xstream, this operator blends multiple streams together, but

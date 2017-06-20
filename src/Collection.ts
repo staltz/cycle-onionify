@@ -3,7 +3,7 @@ import {adapt} from '@cycle/run/lib/adapt';
 import isolate from '@cycle/isolate';
 import {pickMerge} from './pickMerge';
 import {pickCombine} from './pickCombine';
-import {Instances, Lens} from './types';
+import {InternalInstances, Lens} from './types';
 
 const identityLens = {
   get: <T>(outer: T) => outer,
@@ -43,50 +43,11 @@ function instanceLens(getKey: any, key: string): Lens<Array<any>, any> {
   };
 }
 
-export class Collection<Si> {
-  private _instances$: Stream<Instances<Si>>;
+export class Instances<Si> {
+  private _instances$: Stream<InternalInstances<Si>>;
 
-  constructor(itemComp: (so: any) => Si,
-              sources: any,
-              state$: Stream<Array<any> | any>,
-              name: string,
-              getKey: any) {
-    this._instances$ = state$.fold((acc: Instances<Si>, nextState: Array<any> | any) => {
-      const dict = acc.dict;
-      if (Array.isArray(nextState)) {
-        const nextInstArray = Array(nextState.length) as Array<Si & {_key: string}>;
-        const nextKeys = new Set<string>();
-        // add
-        for (let i = 0, n = nextState.length; i < n; ++i) {
-          const key = getKey(nextState[i]);
-          nextKeys.add(key);
-          if (dict.has(key)) {
-            nextInstArray[i] = dict.get(key) as any;
-          } else {
-            const scopes = {'*': '$' + key, [name]: instanceLens(getKey, key)};
-            const sinks = isolate(itemComp, scopes)(sources);
-            dict.set(key, sinks);
-            nextInstArray[i] = sinks;
-          }
-          nextInstArray[i]._key = key;
-        }
-        // remove
-        dict.forEach((_, key) => {
-          if (!nextKeys.has(key)) {
-            dict.delete(key);
-          }
-        });
-        nextKeys.clear();
-        return {dict: dict, arr: nextInstArray};
-      } else {
-        dict.clear();
-        const key = getKey(nextState);
-        const scopes = {'*': '$' + key, [name]: identityLens};
-        const sinks = isolate(itemComp, scopes)(sources);
-        dict.set(key, sinks);
-        return {dict: dict, arr: [sinks]}
-      }
-    }, {dict: new Map(), arr: []} as Instances<Si>);
+  constructor(instances$: Stream<InternalInstances<Si>>) {
+    this._instances$ = instances$;
   }
 
   /**
@@ -117,5 +78,106 @@ export class Collection<Si> {
    */
   public pickCombine(selector: string): Stream<Array<any>> {
     return adapt(this._instances$.compose(pickCombine(selector)));
+  }
+}
+
+export type MakeScopesFn = (key: string | number) => string | object;
+
+function defaultMakeScopes(key: string) {
+  return {'*': null};
+}
+
+export class Collection<S, Si> {
+  protected _itemComp: (sources: any) => Si;
+  protected _state$: Stream<Array<S>>;
+  protected _name: string;
+  protected _getKey: ((state: S) => string) | null;
+  protected _makeScopes: MakeScopesFn;
+
+  constructor(itemComp: (sources: any) => Si,
+              state$: Stream<Array<S>>,
+              name: string,
+              makeScopes: MakeScopesFn = defaultMakeScopes) {
+    this._itemComp = itemComp;
+    this._state$ = state$;
+    this._name = name;
+    this._makeScopes = makeScopes;
+    this._getKey = null;
+  }
+
+  public uniqueBy(getKey: (state: S) => string): UniqueCollection<S, Si> {
+    return new UniqueCollection<S, Si>(this._itemComp, this._state$, this._name, getKey, this._makeScopes);
+  }
+
+  public isolateEach(makeScopes: MakeScopesFn): Collection<S, Si> {
+    return new Collection<S, Si>(this._itemComp, this._state$, this._name, makeScopes);
+  }
+
+  public build(sources: any): Instances<Si> {
+    const instances$ = this._state$.fold((acc: InternalInstances<Si>, nextState: Array<any> | any) => {
+      const dict = acc.dict;
+      if (Array.isArray(nextState)) {
+        const nextInstArray = Array(nextState.length) as Array<Si & {_key: string}>;
+        const nextKeys = new Set<string>();
+        // add
+        for (let i = 0, n = nextState.length; i < n; ++i) {
+          const key = this._getKey === null ? `${i}` : this._getKey(nextState[i]);
+          nextKeys.add(key);
+          if (this._getKey === null || !dict.has(key)) {
+            const onionScope = this._getKey === null ?
+              i :
+              instanceLens(this._getKey, key);
+            const otherScopes = this._makeScopes(key);
+            const scopes = typeof otherScopes === 'string' ?
+              {'*': otherScopes, [this._name]: onionScope}  :
+              {...otherScopes, [this._name]: onionScope};
+            const sinks = isolate(this._itemComp, scopes)(sources);
+            dict.set(key, sinks);
+            nextInstArray[i] = sinks;
+          } else {
+            nextInstArray[i] = dict.get(key) as any;
+          }
+          nextInstArray[i]._key = key;
+        }
+        // remove
+        dict.forEach((_, key) => {
+          if (!nextKeys.has(key)) {
+            dict.delete(key);
+          }
+        });
+        nextKeys.clear();
+        return {dict: dict, arr: nextInstArray};
+      } else {
+        dict.clear();
+        const key = this._getKey === null ? 'this' : this._getKey(nextState);
+        const onionScope = identityLens;
+        const otherScopes = this._makeScopes(key);
+        const scopes = typeof otherScopes === 'string' ?
+          {'*': otherScopes, [this._name]: onionScope}  :
+          {...otherScopes, [this._name]: onionScope};
+        const sinks = isolate(this._itemComp, scopes)(sources);
+        dict.set(key, sinks);
+        return {dict: dict, arr: [sinks]}
+      }
+    }, {dict: new Map(), arr: []} as InternalInstances<Si>);
+
+    return new Instances<Si>(instances$);
+  }
+}
+
+export class UniqueCollection<S, Si> extends Collection<S, Si> {
+  protected _getKey: ((state: S) => string);
+
+  constructor(itemComp: (sources: any) => Si,
+              state$: Stream<Array<S>>,
+              name: string,
+              getKey: (state: S) => string,
+              makeScopes: MakeScopesFn = defaultMakeScopes) {
+    super(itemComp, state$, name, makeScopes);
+    this._getKey = getKey;
+  }
+
+  public isolateEach(makeScopes: (key: string) => string | object): UniqueCollection<S, Si> {
+    return new UniqueCollection<S, Si>(this._itemComp, this._state$, this._name, this._getKey, makeScopes);
   }
 }

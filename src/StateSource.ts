@@ -3,7 +3,7 @@ import dropRepeats from 'xstream/extra/dropRepeats';
 import {DevToolEnabledSource} from '@cycle/run';
 import {adapt} from '@cycle/run/lib/adapt';
 import {Collection} from './Collection';
-import {Getter, Setter, Lens, Scope, Reducer, Instances} from './types';
+import {Getter, Setter, Lens, Scope, Reducer} from './types';
 
 function updateArrayEntry<T>(array: Array<T>, scope: number | string, newVal: any): Array<T> {
   if (newVal === array[scope]) {
@@ -70,13 +70,9 @@ export function isolateSink<T, R>(
     });
 }
 
-function defaultGetKey(statePiece: any) {
-  return statePiece.key;
-}
-
-export class StateSource<T> {
-  public state$: MemoryStream<T>;
-  private _state$: MemoryStream<T>;
+export class StateSource<S> {
+  public state$: MemoryStream<S>;
+  private _state$: MemoryStream<S>;
   private _name: string;
 
   constructor(stream: Stream<any>, name: string) {
@@ -86,7 +82,7 @@ export class StateSource<T> {
       .remember();
     this._name = name;
     this.state$ = adapt(this._state$);
-    (this._state$ as MemoryStream<T> & DevToolEnabledSource)._isCycleSource = name;
+    (this._state$ as MemoryStream<S> & DevToolEnabledSource)._isCycleSource = name;
   }
 
   /**
@@ -99,7 +95,7 @@ export class StateSource<T> {
    * lens object (an object with get() and set()), this argument represents any
    * custom way of selecting something from the state object.
    */
-  public select<R>(scope: Scope<T, R>): StateSource<R> {
+  public select<R>(scope: Scope<S, R>): StateSource<R> {
     const get = makeGetter(scope);
     return new StateSource<R>(this._state$.map(get), this._name);
   }
@@ -134,10 +130,9 @@ export class StateSource<T> {
    * @param getKey
    * @return {Collection}
    */
-  public toCollection<Si>(itemComp: (so: any) => Si,
-                          sources: any,
-                          getKey: any = defaultGetKey): Collection<Si> {
-    return new Collection<Si>(itemComp, sources, this._state$, this._name, getKey);
+  public toCollection<T, Si>(this: StateSource<Array<T>>,
+                             itemComp: (so: any) => Si): Collection<T, Si> {
+    return new Collection<T, Si>(itemComp, this._state$ as any, this._name);
   }
 
   public isolateSource = isolateSource;

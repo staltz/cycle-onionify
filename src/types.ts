@@ -7,7 +7,7 @@ export type Lens<T, R> = {
   set: Setter<T, R>;
 };
 export type Scope<T, R> = string | number | Lens<T, R>;
-export type Instances<Si> = {
+export type InternalInstances<Si> = {
   dict: Map<string, Si>,
   arr: Array<Si & {_key: string}>,
 };

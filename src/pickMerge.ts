@@ -1,5 +1,5 @@
 import xs, {Stream, InternalListener, OutSender, Operator} from 'xstream';
-import {Instances} from './index';
+import {InternalInstances} from './types';
 
 class PickMergeListener<Si, T> implements InternalListener<T>, OutSender<T> {
   public ins: Stream<T>;
@@ -32,15 +32,15 @@ class PickMergeListener<Si, T> implements InternalListener<T>, OutSender<T> {
   }
 }
 
-class PickMerge<Si, T> implements Operator<Instances<Si>, T> {
+class PickMerge<Si, T> implements Operator<InternalInstances<Si>, T> {
   public type = 'pickMerge';
-  public ins: Stream<Instances<Si>>;
+  public ins: Stream<InternalInstances<Si>>;
   public out: Stream<T>;
   public sel: string;
   public ils: Map<string, PickMergeListener<Si, T>>;
-  public inst: Instances<Si>;
+  public inst: InternalInstances<Si>;
 
-  constructor(sel: string, ins: Stream<Instances<Si>>) {
+  constructor(sel: string, ins: Stream<InternalInstances<Si>>) {
     this.ins = ins;
     this.out = null as any;
     this.sel = sel;
@@ -67,7 +67,7 @@ class PickMerge<Si, T> implements Operator<Instances<Si>, T> {
     this.inst = null as any;
   }
 
-  _n(inst: Instances<Si>): void {
+  _n(inst: InternalInstances<Si>): void {
     this.inst = inst;
     const arrSinks = inst.arr;
     const ils = this.ils;
@@ -116,7 +116,7 @@ class PickMerge<Si, T> implements Operator<Instances<Si>, T> {
 }
 
 export function pickMerge(selector: string) {
-  return function pickMergeOperator(inst$: Stream<Instances<any>>): Stream<any> {
+  return function pickMergeOperator(inst$: Stream<InternalInstances<any>>): Stream<any> {
     return new Stream(new PickMerge(selector, inst$));
   };
 }

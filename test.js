@@ -595,7 +595,10 @@ test.cb('should work with collection() and an isolated list children', t => {
   }
 
   function List(sources) {
-    const children = sources.onion.toCollection(Child, sources);
+    const children = sources.onion.toCollection(Child)
+      .uniqueBy(s => s.key)
+      .isolateEach(key => key)
+      .build(sources);
     return {
       onion: children.pickMerge('onion'),
     }
@@ -673,9 +676,11 @@ test.cb('should work with collection() and a custom item key', t => {
   }
 
   function List(sources) {
-    const collection = sources.onion.toCollection(Child, sources, s => s.id);
+    const children = sources.onion.toCollection(Child)
+      .uniqueBy(s => s.id)
+      .build(sources);
     return {
-      onion: collection.pickMerge('onion')
+      onion: children.pickMerge('onion')
     }
   }
 
@@ -729,7 +734,7 @@ test.cb('should work with collection() and a custom item key', t => {
   wrapped({});
 });
 
-test.cb('should work with asCollection() on an object, not an array', t => {
+test.cb('should work with toCollection() on an object, not an array', t => {
   t.plan(3);
 
   function Child(sources) {
@@ -747,7 +752,7 @@ test.cb('should work with asCollection() on an object, not an array', t => {
   }
 
   function Wrapper(sources) {
-    const children = sources.onion.toCollection(Child, sources);
+    const children = sources.onion.toCollection(Child).build(sources);
     return {
       onion: children.pickMerge('onion'),
     }
