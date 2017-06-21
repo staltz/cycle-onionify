@@ -1,6 +1,6 @@
 {
   "name": "cycle-onionify",
-  "version": "4.0.0-rc.10",
+  "version": "4.0.0-rc.11",
   "description": "Augments your Cycle.js main function with onion-shaped state management",
   "author": "staltz",
   "license": "MIT",
