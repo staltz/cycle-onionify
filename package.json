@@ -6,6 +6,9 @@
   "license": "MIT",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
+  "homepage": "https://github.com/staltz/cycle-onionify",
+  "bugs": "https://github.com/staltz/cycle-onionify/issues",
+  "repository": "https://github.com/staltz/cycle-onionify",
   "scripts": {
     "pretest": "npm run lib",
     "test": "ava --timeout=1000",
