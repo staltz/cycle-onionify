@@ -522,7 +522,7 @@ function main(sources) {
 
 ### How does this work?
 
-Read the source. It's less than 100 lines of code, and probably quicker to read the source than to explain it in words.
+[Read the source](https://github.com/staltz/cycle-onionify/blob/master/src/index.ts). It's less than 150 lines of code, and probably quicker to read the source than to explain it in words.
 
 ### Why is this not official in Cycle.js?
 
