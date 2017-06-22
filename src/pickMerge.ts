@@ -54,6 +54,7 @@ class PickMerge<Si, T> implements Operator<InternalInstances<Si>, T> {
   }
 
   _stop(): void {
+    this.ins._remove(this);
     const ils = this.ils;
     ils.forEach((il, key) => {
       il.ins._remove(il);

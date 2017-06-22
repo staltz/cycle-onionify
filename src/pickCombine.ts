@@ -59,6 +59,7 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
   }
 
   _stop(): void {
+    this.ins._remove(this);
     const ils = this.ils;
     ils.forEach(il => {
       il.ins._remove(il);
