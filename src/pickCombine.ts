@@ -118,24 +118,13 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
       return;
     }
     // add
-    let added = false;
     for (let i = 0; i < n; ++i) {
       const sinks = arrSinks[i];
       const key = sinks._key as any as string;
       const sink = sinks[sel];
       if (!ils.has(key)) {
         ils.set(key, new PickCombineListener(key, out, this, sink));
-        added = true;
-      }
-    }
-    if (added) {
-      for (let i = 0; i < n; ++i) {
-        const sinks = arrSinks[i];
-        const key = sinks._key as any as string;
-        const sink = sinks[sel];
-        if ((sink as any)._ils.length === 0) {
-          sink._add(ils.get(key));
-        }
+        sink._add(ils.get(key));
       }
     }
     if (removed) {

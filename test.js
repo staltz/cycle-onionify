@@ -734,6 +734,89 @@ test.cb('should work with collection() and a custom item key', t => {
   wrapped({});
 });
 
+test.cb('should correctly accumulate over time even without uniqueBy', t => {
+  t.plan(10);
+
+  function Child(sources) {
+    const defaultReducer$ = xs.of(prev => {
+      if (typeof prev.val === 'number') {
+        return prev;
+      } else {
+        return {val: 10};
+      }
+    });
+
+    const incrementReducer$ = xs.of(
+      prev => ({val: prev.val + 1}),
+      prev => ({val: prev.val + 1}),
+      prev => ({val: prev.val + 1})
+    ).compose(delay(50));
+
+    return {
+      onion: xs.merge(defaultReducer$, incrementReducer$),
+    };
+  }
+
+  function List(sources) {
+    const children = sources.onion.toCollection(Child)
+      .build(sources);
+    return {
+      onion: children.pickMerge('onion')
+    }
+  }
+
+  function Main(sources) {
+    const expected = [
+      [{val: 3}],
+      [{val: 4}],
+      [{val: 5}],
+      [{val: 6}],
+      [{val: 6}, {val: null}],
+      [{val: 6}, {val: 10}],
+      [{val: 6}, {val: 11}],
+      [{val: 6}, {val: 12}],
+      [{val: 6}, {val: 13}],
+    ];
+
+    sources.onion.state$.addListener({
+      next(x) {
+        t.deepEqual(x.list, expected.shift());
+        if (expected.length === 0) {
+          t.pass();
+          t.end();
+        }
+      },
+      error(e) {
+        t.fail(e.message);
+      },
+      complete() {
+        t.fail('complete should not be called');
+      },
+    });
+
+    const childSinks = isolate(List, 'list')(sources);
+    const childReducer$ = childSinks.onion;
+
+    const initReducer$ = xs.of(function initReducer(prevState) {
+      return { list: [{val: 3}] };
+    });
+
+    const addReducer$ = xs.of(function addSecond(prev) {
+      return {list: prev.list.concat({val: null})};
+    }).compose(delay(100));
+
+    const parentReducer$ = xs.merge(initReducer$, addReducer$)
+    const reducer$ = xs.merge(parentReducer$, childReducer$);
+
+    return {
+      onion: reducer$,
+    };
+  }
+
+  const wrapped = onionify(Main);
+  wrapped({});
+});
+
 test.cb('should work with toCollection() on an object, not an array', t => {
   t.plan(3);
 

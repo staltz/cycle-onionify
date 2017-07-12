@@ -171,7 +171,7 @@ export class Collection<S, Si> {
         for (let i = 0, n = nextState.length; i < n; ++i) {
           const key = this._getKey === null ? `${i}` : this._getKey(nextState[i]);
           nextKeys.add(key);
-          if (this._getKey === null || !dict.has(key)) {
+          if (!dict.has(key)) {
             const onionScope = this._getKey === null ?
               i :
               instanceLens(this._getKey, key);
