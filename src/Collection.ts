@@ -3,7 +3,7 @@ import {adapt} from '@cycle/run/lib/adapt';
 import isolate from '@cycle/isolate';
 import {pickMerge} from './pickMerge';
 import {pickCombine} from './pickCombine';
-import {InternalInstances, Lens} from './types';
+import {InternalInstances, Lens, MakeScopesFn} from './types';
 
 const identityLens = {
   get: <T>(outer: T) => outer,
@@ -84,8 +84,6 @@ export class Instances<Si> {
     return adapt(this._instances$.compose(pickCombine(selector)));
   }
 }
-
-export type MakeScopesFn = (key: string | number) => string | object;
 
 function defaultMakeScopes(key: string) {
   return {'*': null};

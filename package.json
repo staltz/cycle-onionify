@@ -14,7 +14,7 @@
     "test": "ava --timeout=2000",
     "prelib": "mkdir -p lib",
     "lib": "tsc",
-    "prepublish": "npm run lib"
+    "prepublishOnly": "npm run lib"
   },
   "dependencies": {
     "@cycle/run": "*",
@@ -22,7 +22,10 @@
     "xstream": ">=10"
   },
   "devDependencies": {
+    "@cycle/rxjs-run": "7.0",
     "ava": "0.18.x",
+    "rxjs": "5.1.0",
+    "most": "1.5.0",
     "typescript": "2.3.2"
   }
 }
