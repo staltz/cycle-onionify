@@ -1,11 +1,11 @@
 import xs, {Stream} from 'xstream';
 import isolate from '@cycle/isolate';
 import {div, span, input, button, ul, VNode, DOMSource} from '@cycle/dom';
-import {StateSource} from 'cycle-onionify';
-import List, {Sources as ListSources, State as ListState} from './List';
+import {StateSource, makeCollection} from 'cycle-onionify';
+import Item, {State as ItemState, Sources as ItemSources} from './Item';
 
 export interface State {
-  list: ListState;
+  list: Array<ItemState & {key: string}>;
 }
 
 export type Reducer = (prev?: State) => State | undefined;
@@ -62,7 +62,18 @@ function view(listVNode$: Stream<VNode>): Stream<VNode> {
 }
 
 export default function TodoApp(sources: Sources): Sinks {
-  const listSinks = isolate(List, 'list')(sources as any as ListSources);
+  const List = makeCollection({
+    item: Item,
+    uniqueBy: (s: any) => s.key,
+    isolateEach: (key: string) => key,
+    collect: (instances: any) => ({
+      DOM: instances.pickCombine('DOM')
+        .map((itemVNodes: Array<VNode>) => ul(itemVNodes)),
+      onion: instances.pickMerge('onion')
+    })
+  });
+
+  const listSinks = isolate(List, 'list')(sources as any);
   const action$ = intent(sources.DOM);
   const parentReducer$ = model(action$);
   const listReducer$ = listSinks.onion as any as Stream<Reducer>;

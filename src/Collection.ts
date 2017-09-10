@@ -3,7 +3,8 @@ import {adapt} from '@cycle/run/lib/adapt';
 import isolate from '@cycle/isolate';
 import {pickMerge} from './pickMerge';
 import {pickCombine} from './pickCombine';
-import {InternalInstances, Lens, MakeScopesFn} from './types';
+import {StateSource} from './StateSource';
+import {InternalInstances, Lens, MakeScopesFn, Scope} from './types';
 
 const identityLens = {
   get: <T>(outer: T) => outer,
@@ -244,5 +245,68 @@ export class UniqueCollection<S, Si> extends Collection<S, Si> {
    */
   public isolateEach(makeScopes: (key: string) => string | object): UniqueCollection<S, Si> {
     return new UniqueCollection<S, Si>(this._itemComp, this._state$, this._name, this._getKey, makeScopes);
+  }
+}
+
+export interface CollectionOptions<S, So, Si> {
+  item: (so: So) => Si;
+  collect: (instances: Instances<Si>) => any;
+  uniqueBy?: (state: S) => string;
+  isolateEach?: MakeScopesFn;
+  name?: string;
+}
+
+export function makeCollection<S, So, Si>(opts: CollectionOptions<S, So, Si>) {
+  return function collectionComponent(sources: any) {
+    const name = opts.name || 'onion';
+    const state$ = (sources[name] as StateSource<S>).state$;
+    const getKey = opts.uniqueBy;
+    const makeScopes = opts.isolateEach || defaultMakeScopes;
+    const itemComp = opts.item;
+    const instances$ = state$.fold((acc: InternalInstances<Si>, nextState: Array<any> | any) => {
+      const dict = acc.dict;
+      if (Array.isArray(nextState)) {
+        const nextInstArray = Array(nextState.length) as Array<Si & {_key: string}>;
+        const nextKeys = new Set<string>();
+        // add
+        for (let i = 0, n = nextState.length; i < n; ++i) {
+          const key = getKey ? getKey(nextState[i]) : `${i}`;
+          nextKeys.add(key);
+          if (!dict.has(key)) {
+            const onionScope = getKey ? instanceLens(getKey, key) : i;
+            const otherScopes = makeScopes(key);
+            const scopes = typeof otherScopes === 'string' ?
+              {'*': otherScopes, [name]: onionScope}  :
+              {...otherScopes, [name]: onionScope};
+            const sinks = isolate(itemComp, scopes)(sources);
+            dict.set(key, sinks);
+            nextInstArray[i] = sinks;
+          } else {
+            nextInstArray[i] = dict.get(key) as any;
+          }
+          nextInstArray[i]._key = key;
+        }
+        // remove
+        dict.forEach((_, key) => {
+          if (!nextKeys.has(key)) {
+            dict.delete(key);
+          }
+        });
+        nextKeys.clear();
+        return {dict: dict, arr: nextInstArray};
+      } else {
+        dict.clear();
+        const key = getKey ? getKey(nextState) : 'this';
+        const onionScope = identityLens;
+        const otherScopes = makeScopes(key);
+        const scopes = typeof otherScopes === 'string' ?
+          {'*': otherScopes, [name]: onionScope}  :
+          {...otherScopes, [name]: onionScope};
+        const sinks = isolate(itemComp, scopes)(sources);
+        dict.set(key, sinks);
+        return {dict: dict, arr: [sinks]}
+      }
+    }, {dict: new Map(), arr: []} as InternalInstances<Si>);
+    return opts.collect(new Instances<Si>(instances$));
   }
 }

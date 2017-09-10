@@ -1,12 +1,12 @@
 import xs, {Stream} from 'xstream';
 import isolate from '@cycle/isolate';
 import {div, VNode, DOMSource} from '@cycle/dom';
-import {StateSource, Lens} from 'cycle-onionify';
+import {StateSource, Lens, makeCollection} from 'cycle-onionify';
 import Edit, {State as EditState} from './Edit';
-import List, {State as ListState} from './List';
+import Item, {State as ItemState} from './Item';
 
 export type State = {
-  list: ListState;
+  list: Array<ItemState>;
   currentIndex: number;
 }
 
@@ -33,7 +33,7 @@ export default function RadioApp(sources: Sources): Sinks {
     };
   });
 
-  const listLens: Lens<State, ListState> = {
+  const listLens: Lens<State, Array<ItemState>> = {
     get: state => state.list,
     set: (state, childState) => {
       const idx = (childState as any).findIndex((item: any, i: number) =>
@@ -59,6 +59,16 @@ export default function RadioApp(sources: Sources): Sinks {
       ),
     })
   }
+
+  const List = makeCollection({
+    item: Item,
+    isolateEach: (idx: number) => String(idx),
+    collect: (instances: any) => ({
+      DOM: instances.pickCombine('DOM')
+        .map((itemVNodes: any) => div({style: {marginTop: '20px'}}, itemVNodes)),
+      onion: instances.pickMerge('onion'),
+    })
+  });
 
   const listSinks: Sinks = isolate(List, {onion: listLens})(sources);
   const listVDom = listSinks.DOM;
