@@ -1,12 +1,15 @@
 import xs, {Stream} from 'xstream';
 import isolate from '@cycle/isolate';
-import {div, span, input, button, VNode, DOMSource} from '@cycle/dom';
-import {StateSource, Lens} from 'cycle-onionify';
+import {div, span, ul, input, button, VNode, DOMSource} from '@cycle/dom';
+import {StateSource, Lens, makeCollection} from 'cycle-onionify';
 import Counter, {State as CounterState} from './Counter';
-import List, {State as ListState} from './List';
+import Item, {State as ItemState} from './Item';
+// import List, {State as ListState} from './List';
+
+export type ItemStateWithKey = ItemState & {key: string};
 
 export type State = {
-  list: ListState;
+  list: Array<ItemStateWithKey>;
   counter?: CounterState;
 };
 
@@ -74,11 +77,22 @@ function view(listVNode$: Stream<VNode>, counterVNode$: Stream<VNode>): Stream<V
     );
 }
 
-const listLens: Lens<State, ListState> = {
+const List = makeCollection<ItemStateWithKey, any, any>({
+  item: Item,
+  itemKey: state => state.key,
+  itemScope: key => key,
+  collectSinks: instances => ({
+    DOM: instances.pickCombine('DOM')
+      .map(itemVNodes => ul(itemVNodes)),
+    onion: instances.pickMerge('onion'),
+  })
+});
+
+const listLens: Lens<State, Array<ItemStateWithKey>> = {
   get(state: State) {
     return state.list.map((item) => ({...item, count: state.counter.count}))
   },
-  set(state: State, listState: ListState) {
+  set(state: State, listState: Array<ItemStateWithKey>) {
     const count = state.counter ?
       (listState.find(item => item.count !== state.counter.count) || state.counter).count :
       0;

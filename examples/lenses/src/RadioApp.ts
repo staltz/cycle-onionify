@@ -62,8 +62,9 @@ export default function RadioApp(sources: Sources): Sinks {
 
   const List = makeCollection({
     item: Item,
-    isolateEach: (idx: number) => String(idx),
-    collect: (instances: any) => ({
+    itemKey: (state: any, index: number) => String(index),
+    itemScope: (key: string) => key,
+    collectSinks: (instances: any) => ({
       DOM: instances.pickCombine('DOM')
         .map((itemVNodes: any) => div({style: {marginTop: '20px'}}, itemVNodes)),
       onion: instances.pickMerge('onion'),

@@ -64,9 +64,9 @@ function view(listVNode$: Stream<VNode>): Stream<VNode> {
 export default function TodoApp(sources: Sources): Sinks {
   const List = makeCollection({
     item: Item,
-    uniqueBy: (s: any) => s.key,
-    isolateEach: (key: string) => key,
-    collect: (instances: any) => ({
+    itemKey: (s: any) => s.key,
+    itemScope: (key: string) => key,
+    collectSinks: (instances: any) => ({
       DOM: instances.pickCombine('DOM')
         .map((itemVNodes: Array<VNode>) => ul(itemVNodes)),
       onion: instances.pickMerge('onion')
