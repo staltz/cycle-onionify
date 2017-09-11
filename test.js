@@ -5,6 +5,7 @@ import isolate from '@cycle/isolate';
 import onionify, {
   pickCombine,
   pickMerge,
+  makeCollection,
   isolateSource,
   isolateSink,
 } from './lib/index';
@@ -573,7 +574,7 @@ test('should work with an isolated child component on an array entry', t => {
   wrapped({});
 });
 
-test.cb('should work with collection() and an isolated list children', t => {
+test.cb('should work with makeCollection() and an isolated list children', t => {
   t.plan(6);
 
   function Child(sources) {
@@ -594,15 +595,14 @@ test.cb('should work with collection() and an isolated list children', t => {
     };
   }
 
-  function List(sources) {
-    const children = sources.onion.toCollection(Child)
-      .uniqueBy(s => s.key)
-      .isolateEach(key => key)
-      .build(sources);
-    return {
-      onion: children.pickMerge('onion'),
-    }
-  }
+  const List = makeCollection({
+    item: Child,
+    itemKey: s => s.key,
+    itemScope: key => key,
+    collectSinks: instances => ({
+      onion: instances.pickMerge('onion')
+    }),
+  })
 
   function Main(sources) {
     const expected = [
@@ -654,7 +654,7 @@ test.cb('should work with collection() and an isolated list children', t => {
   wrapped({});
 });
 
-test.cb('should work with collection() and a custom item key', t => {
+test.cb('should work with makeCollection() and a custom item key', t => {
   t.plan(6);
 
   function Child(sources) {
@@ -675,14 +675,13 @@ test.cb('should work with collection() and a custom item key', t => {
     };
   }
 
-  function List(sources) {
-    const children = sources.onion.toCollection(Child)
-      .uniqueBy(s => s.id)
-      .build(sources);
-    return {
-      onion: children.pickMerge('onion')
-    }
-  }
+  const List = makeCollection({
+    item: Child,
+    itemKey: s => s.id,
+    collectSinks: instances => ({
+      onion: instances.pickMerge('onion')
+    }),
+  });
 
   function Main(sources) {
     const expected = [
@@ -734,7 +733,7 @@ test.cb('should work with collection() and a custom item key', t => {
   wrapped({});
 });
 
-test.cb('should correctly accumulate over time even without uniqueBy', t => {
+test.cb('should correctly accumulate over time even without itemKey', t => {
   t.plan(10);
 
   function Child(sources) {
@@ -757,13 +756,12 @@ test.cb('should correctly accumulate over time even without uniqueBy', t => {
     };
   }
 
-  function List(sources) {
-    const children = sources.onion.toCollection(Child)
-      .build(sources);
-    return {
-      onion: children.pickMerge('onion')
-    }
-  }
+  const List = makeCollection({
+    item: Child,
+    collectSinks: instances => ({
+      onion: instances.pickMerge('onion')
+    }),
+  });
 
   function Main(sources) {
     const expected = [
@@ -817,7 +815,7 @@ test.cb('should correctly accumulate over time even without uniqueBy', t => {
   wrapped({});
 });
 
-test.cb('should work with toCollection() on an object, not an array', t => {
+test.cb('should work with makeCollection() on an object, not an array', t => {
   t.plan(3);
 
   function Child(sources) {
@@ -834,12 +832,12 @@ test.cb('should work with toCollection() on an object, not an array', t => {
     };
   }
 
-  function Wrapper(sources) {
-    const children = sources.onion.toCollection(Child).build(sources);
-    return {
-      onion: children.pickMerge('onion'),
-    }
-  }
+  const Wrapper = makeCollection({
+    item: Child,
+    collectSinks: instances => ({
+      onion: instances.pickMerge('onion'),
+    })
+  })
 
   function Main(sources) {
     const expected = [

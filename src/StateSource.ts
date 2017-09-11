@@ -2,7 +2,6 @@ import xs, {Stream, MemoryStream} from 'xstream';
 import dropRepeats from 'xstream/extra/dropRepeats';
 import {DevToolEnabledSource} from '@cycle/run';
 import {adapt} from '@cycle/run/lib/adapt';
-import {Collection} from './Collection';
 import {Getter, Setter, Lens, Scope, Reducer} from './types';
 
 function updateArrayEntry<T>(array: Array<T>, scope: number | string, newVal: any): Array<T> {
@@ -101,31 +100,6 @@ export class StateSource<S> {
   public select<R>(scope: Scope<S, R>): StateSource<R> {
     const get = makeGetter(scope);
     return new StateSource<R>(this._state$.map(get), this._name);
-  }
-
-  /**
-   * Treats the state in this StateSource as a dynamic collection of many child
-   * components of the same type, returning a Collection object.
-   *
-   * Typically you use this function when the state$ emits arrays, and each
-   * entry in the array is an object holding the state for each child component.
-   * When the state array grows, the collection will automatically instantiate
-   * a new child component. Similarly, when the state array gets smaller, the
-   * collection will handle removal of the corresponding child component.
-   *
-   * The input argument is the child Cycle.js component function to use for each
-   * entry in the array. This returned value is a Collection, which resembles a
-   * Cycle.js component: you can call its build(sources) method to instantiate
-   * the collection.
-   *
-   * @param {Function} itemComp a function that takes `sources` as input and
-   * returns `sinks`, representing the component to be used for each child in
-   * the collection.
-   * @return {Collection}
-   */
-  public toCollection<T, Si>(this: StateSource<Array<T>>,
-                             itemComp: (so: any) => Si): Collection<T, Si> {
-    return new Collection<T, Si>(itemComp, this._state$ as any, this._name);
   }
 
   public isolateSource = isolateSource;

@@ -1,48 +1,10 @@
-import {Stream} from 'xstream';
+import xs, {Stream} from 'xstream';
 import {adapt} from '@cycle/run/lib/adapt';
 import isolate from '@cycle/isolate';
 import {pickMerge} from './pickMerge';
 import {pickCombine} from './pickCombine';
 import {StateSource} from './StateSource';
-import {InternalInstances, Lens, MakeScopesFn, Scope} from './types';
-
-const identityLens = {
-  get: <T>(outer: T) => outer,
-  set: <T>(outer: T, inner: T) => inner,
-};
-
-function instanceLens(getKey: any, key: string): Lens<Array<any>, any> {
-  return {
-    get(arr: Array<any> | undefined): any {
-      if (typeof arr === 'undefined') {
-        return void 0;
-      } else {
-        for (let i = 0, n = arr.length; i < n; ++i) {
-          if (getKey(arr[i]) === key) {
-            return arr[i];
-          }
-        }
-        return void 0;
-      }
-    },
-
-    set(arr: Array<any> | undefined, item: any): any {
-      if (typeof arr === 'undefined') {
-        return [item];
-      } else if (typeof item === 'undefined') {
-        return arr.filter(s => getKey(s) !== key);
-      } else {
-        return arr.map(s => {
-          if (getKey(s) === key) {
-            return item;
-          } else {
-            return s;
-          }
-        });
-      }
-    },
-  };
-}
+import {InternalInstances, Lens, ItemKeyFn, ItemScopeFn} from './types';
 
 /**
  * An object representing all instances in a collection of components. Has the
@@ -86,183 +48,129 @@ export class Instances<Si> {
   }
 }
 
-function defaultMakeScopes(key: string) {
-  return {'*': null};
-}
-
-/**
- * Represents a collection of many child components of the same component type.
- *
- * Behaves somewhat like a typical Cycle.js component because you can pass
- * sources to it using the method `build()`.
- */
-export class Collection<S, Si> {
-  protected _itemComp: (sources: any) => Si;
-  protected _state$: Stream<Array<S>>;
-  protected _name: string;
-  protected _getKey: ((state: S) => string) | null;
-  protected _makeScopes: MakeScopesFn;
-
-  constructor(itemComp: (sources: any) => Si,
-              state$: Stream<Array<S>>,
-              name: string,
-              makeScopes: MakeScopesFn = defaultMakeScopes) {
-    this._itemComp = itemComp;
-    this._state$ = state$;
-    this._name = name;
-    this._makeScopes = makeScopes;
-    this._getKey = null;
-  }
+export interface CollectionOptions<S, So, Si> {
+  /**
+   * The Cycle.js component for each item in this collection. Should be just a
+   * function from sources to sinks.
+   */
+  item: (so: So) => Si;
 
   /**
-   * Give an identifier to each entry in the collection, to avoid bugs when the
-   * collection grows or shrinks, as well as to improve performance of the
-   * management of instances.
+   * A function that describes how to collect all the sinks from all item
+   * instances. The instances argument is an object with two methods: pickMerge
+   * and pickCombine. These behave like xstream "merge" and "combine" operators,
+   * but are applied to the dynamic collection of all item instances.
+   *
+   * This function should return an object of sinks. This is what the collection
+   * component will output as its sinks.
+   */
+  collectSinks: (instances: Instances<Si>) => any;
+
+  /**
+   * Specify, from the state object for each item in the collection, a key for
+   * that item. This avoids bugs when the collection grows or shrinks, as well
+   * as helps determine the isolation scope for each item, when specifying the
+   * `itemScope` option. This function also takes the index number (from the
+   * corresponding entry in the state array) as the second argument.
    *
    * Example:
    *
    * ```js
-   * collection.uniqueBy(state => state.key)
+   * itemKey: (itemState, index) => itemState.key
    * ```
-   *
-   * @param {Function} getKey a function that takes the child object state and
-   * should return the unique identifier for that child.
-   * @return {UniqueCollection} a collection of unique children
    */
-  public uniqueBy(getKey: (state: S) => string): UniqueCollection<S, Si> {
-    return new UniqueCollection<S, Si>(this._itemComp, this._state$, this._name, getKey, this._makeScopes);
-  }
+  itemKey?: ItemKeyFn<S>;
 
   /**
-   * Isolate each child component in the collection.
+   * Specify each item's isolation scope, given the item's key.
    *
    * Pass a function which describes how to create the isolation scopes for each
-   * child component, given that child component's unique identifier. The unique
-   * id for each child is the array index (a number) of the entry corresponding
-   * to that child.
-   *
-   * @param {Function} makeScopes a function that takes the child's unique
-   * identifier and should return the isolation scopes for that child.
-   * @return {Collection} a new collection where children will be isolated
+   * item component, given that item component's unique key. The unique key for
+   * each item was defined by the `itemKey` option.
    */
-  public isolateEach(makeScopes: MakeScopesFn): Collection<S, Si> {
-    return new Collection<S, Si>(this._itemComp, this._state$, this._name, makeScopes);
-  }
+  itemScope?: ItemScopeFn;
 
   /**
-   * Build this collection by creating instances of each child component in the
-   * collection.
-   *
-   * Pass the sources object to be given to each child component.
-   *
-   * @param {Object} sources
-   * @return {Instances} an object represeting all instances, which has the
-   * methods pickCombine and pickMerge to get the combined sinks of all
-   * instances.
+   * Choose the channel name where the StateSource exists. Typically this is
+   * 'onion', but you can customize it if your app is using another name. It is
+   * used for referencing the correct source used for describing
+   * growing/shrinking of the collection of items.
    */
-  public build(sources: any): Instances<Si> {
-    const instances$ = this._state$.fold((acc: InternalInstances<Si>, nextState: Array<any> | any) => {
-      const dict = acc.dict;
-      if (Array.isArray(nextState)) {
-        const nextInstArray = Array(nextState.length) as Array<Si & {_key: string}>;
-        const nextKeys = new Set<string>();
-        // add
-        for (let i = 0, n = nextState.length; i < n; ++i) {
-          const key = this._getKey === null ? `${i}` : this._getKey(nextState[i]);
-          nextKeys.add(key);
-          if (!dict.has(key)) {
-            const onionScope = this._getKey === null ?
-              i :
-              instanceLens(this._getKey, key);
-            const otherScopes = this._makeScopes(key);
-            const scopes = typeof otherScopes === 'string' ?
-              {'*': otherScopes, [this._name]: onionScope}  :
-              {...otherScopes, [this._name]: onionScope};
-            const sinks = isolate(this._itemComp, scopes)(sources);
-            dict.set(key, sinks);
-            nextInstArray[i] = sinks;
-          } else {
-            nextInstArray[i] = dict.get(key) as any;
+  channel?: string;
+}
+
+function defaultItemScope(key: string) {
+  return {'*': null};
+}
+
+function instanceLens(itemKey: ItemKeyFn<any>, key: string): Lens<Array<any>, any> {
+  return {
+    get(arr: Array<any> | undefined): any {
+      if (typeof arr === 'undefined') {
+        return void 0;
+      } else {
+        for (let i = 0, n = arr.length; i < n; ++i) {
+          if (`${itemKey(arr[i], i)}` === key) {
+            return arr[i];
           }
-          nextInstArray[i]._key = key;
         }
-        // remove
-        dict.forEach((_, key) => {
-          if (!nextKeys.has(key)) {
-            dict.delete(key);
+        return void 0;
+      }
+    },
+
+    set(arr: Array<any> | undefined, item: any): any {
+      if (typeof arr === 'undefined') {
+        return [item];
+      } else if (typeof item === 'undefined') {
+        return arr.filter((s, i) => `${itemKey(s, i)}` !== key);
+      } else {
+        return arr.map((s, i) => {
+          if (`${itemKey(s, i)}` === key) {
+            return item;
+          } else {
+            return s;
           }
         });
-        nextKeys.clear();
-        return {dict: dict, arr: nextInstArray};
-      } else {
-        dict.clear();
-        const key = this._getKey === null ? 'this' : this._getKey(nextState);
-        const onionScope = identityLens;
-        const otherScopes = this._makeScopes(key);
-        const scopes = typeof otherScopes === 'string' ?
-          {'*': otherScopes, [this._name]: onionScope}  :
-          {...otherScopes, [this._name]: onionScope};
-        const sinks = isolate(this._itemComp, scopes)(sources);
-        dict.set(key, sinks);
-        return {dict: dict, arr: [sinks]}
       }
-    }, {dict: new Map(), arr: []} as InternalInstances<Si>);
-
-    return new Instances<Si>(instances$);
-  }
+    },
+  };
 }
+
+const identityLens = {
+  get: <T>(outer: T) => outer,
+  set: <T>(outer: T, inner: T) => inner,
+};
 
 /**
- * Represents a collection of many child components of the same component type,
- * where each child is uniquely identified.
+ * Returns a Cycle.js component (a function from sources to sinks) that
+ * represents a collection of many item components of the same type.
  *
- * Behaves somewhat like a typical Cycle.js component because you can pass
- * sources to it using the method `build()`.
+ * Takes an "options" object as input, with the required properties:
+ * - item
+ * - collectSinks
+ *
+ * And the optional properties:
+ * - itemKey
+ * - itemScope
+ * - channel
+ *
+ * The returned component, the Collection, will use the state source passed to
+ * it (through sources) to guide the dynamic growing/shrinking of instances of
+ * the item component.
+ *
+ * Typically the state source should emit arrays, where each entry in the array
+ * is an object holding the state for each item component. When the state array
+ * grows, the collection will automatically instantiate a new item component.
+ * Similarly, when the state array gets smaller, the collection will handle
+ * removal of the corresponding item instance.
  */
-export class UniqueCollection<S, Si> extends Collection<S, Si> {
-  protected _getKey: ((state: S) => string);
-
-  constructor(itemComp: (sources: any) => Si,
-              state$: Stream<Array<S>>,
-              name: string,
-              getKey: (state: S) => string,
-              makeScopes: MakeScopesFn = defaultMakeScopes) {
-    super(itemComp, state$, name, makeScopes);
-    this._getKey = getKey;
-  }
-
-  /**
-   * Isolate each child component in the collection.
-   *
-   * Pass a function which describes how to create the isolation scopes for each
-   * child component, given that child component's unique identifier. The unique
-   * id for each child is a string and it comes from the function you used in
-   * `uniqueBy`.
-   *
-   * @param {Function} makeScopes a function that takes the child's unique
-   * identifier and should return the isolation scopes for that child.
-   * @return {Collection} a new collection where children will be isolated
-   */
-  public isolateEach(makeScopes: (key: string) => string | object): UniqueCollection<S, Si> {
-    return new UniqueCollection<S, Si>(this._itemComp, this._state$, this._name, this._getKey, makeScopes);
-  }
-}
-
-export interface CollectionOptions<S, So, Si> {
-  item: (so: So) => Si;
-  collect: (instances: Instances<Si>) => any;
-  uniqueBy?: (state: S) => string;
-  isolateEach?: MakeScopesFn;
-  name?: string;
-}
-
 export function makeCollection<S, So, Si>(opts: CollectionOptions<S, So, Si>) {
   return function collectionComponent(sources: any) {
-    const name = opts.name || 'onion';
-    const state$ = (sources[name] as StateSource<S>).state$;
-    const getKey = opts.uniqueBy;
-    const makeScopes = opts.isolateEach || defaultMakeScopes;
+    const name = opts.channel || 'onion';
+    const itemKey = opts.itemKey;
+    const itemScope = opts.itemScope || defaultItemScope;
     const itemComp = opts.item;
+    const state$ = xs.fromObservable((sources[name] as StateSource<S>).state$);
     const instances$ = state$.fold((acc: InternalInstances<Si>, nextState: Array<any> | any) => {
       const dict = acc.dict;
       if (Array.isArray(nextState)) {
@@ -270,11 +178,11 @@ export function makeCollection<S, So, Si>(opts: CollectionOptions<S, So, Si>) {
         const nextKeys = new Set<string>();
         // add
         for (let i = 0, n = nextState.length; i < n; ++i) {
-          const key = getKey ? getKey(nextState[i]) : `${i}`;
+          const key = `${itemKey ? itemKey(nextState[i], i) : i}`;
           nextKeys.add(key);
           if (!dict.has(key)) {
-            const onionScope = getKey ? instanceLens(getKey, key) : i;
-            const otherScopes = makeScopes(key);
+            const onionScope = itemKey ? instanceLens(itemKey, key) : `${i}`;
+            const otherScopes = itemScope(key);
             const scopes = typeof otherScopes === 'string' ?
               {'*': otherScopes, [name]: onionScope}  :
               {...otherScopes, [name]: onionScope};
@@ -296,9 +204,9 @@ export function makeCollection<S, So, Si>(opts: CollectionOptions<S, So, Si>) {
         return {dict: dict, arr: nextInstArray};
       } else {
         dict.clear();
-        const key = getKey ? getKey(nextState) : 'this';
+        const key = `${itemKey ? itemKey(nextState, 0) : 'this'}`;
         const onionScope = identityLens;
-        const otherScopes = makeScopes(key);
+        const otherScopes = itemScope(key);
         const scopes = typeof otherScopes === 'string' ?
           {'*': otherScopes, [name]: onionScope}  :
           {...otherScopes, [name]: onionScope};
@@ -307,6 +215,6 @@ export function makeCollection<S, So, Si>(opts: CollectionOptions<S, So, Si>) {
         return {dict: dict, arr: [sinks]}
       }
     }, {dict: new Map(), arr: []} as InternalInstances<Si>);
-    return opts.collect(new Instances<Si>(instances$));
+    return opts.collectSinks(new Instances<Si>(instances$));
   }
 }
