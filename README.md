@@ -4,8 +4,7 @@ Augments your [Cycle.js](https://cycle.js.org) main function with onion-shaped s
 
 - **Simple:** all state lives in one place only
 - **Predictable:** use the same pattern to build any component
-- **Reusable:** you can move any component to any other codebase using onionify
-- **Tiny:** library has less than 100 lines of code, less than 2 kB
+- **Reusable:** you can move any onionify-based component to any other Cycle.js codebase
 
 Quick example:
 
@@ -73,8 +72,6 @@ As a consequence, state management is layered like an onion. State streams (sour
 
 **Fractal, like most Cycle.js apps should be.** Unlike Redux, there is no *global entity* in the onion state architecture, except for the usage of the `onionify` function itself, which is one line of code. The onion state architecture is similar to the Elm architecture in this regard, where any component is written in the same way without expecting any global entity to exist. As a result, you gain reusability: you can take any component and run it anywhere else because it's not tied to any global entity. You can reuse the component in another Cycle.js onionified app, or you can run the component in isolation for testing purposes without having to mock any external dependency for state management (such as a Flux Dispatcher).
 
-**Does not require IDs to manage a list of components.** In Redux, Elm arch, traditional Cycle.js, and [Stanga](https://github.com/milankinen/stanga), to manage a collection of components (such as a dynamic to-do list), you need to issue unique IDs and manage them when reducers need to update a particular entry. In [Redux TodoMVC](https://github.com/reactjs/redux/blob/055f0058931465af6f96213a99461fc852f83c61/examples/todomvc/src/reducers/todos.js#L16), this is `id: state.reduce((maxId, todo) => Math.max(todo.id, maxId), -1) + 1,` and in [Elm TodoMVC](https://github.com/evancz/elm-todomvc/blob/11fc6bef5f53ebd062caf9b6ce7b95e84634e9a5/Todo.elm#L129), this is `{ model | uid = model.uid + 1}`. In onionify, to manage arrays in the state tree you do not need ID numbers at all. For instance, a to-do entry component can delete itself from the list using a reducer that returns undefined as the new state. See the source code for [TodoMVC Cycle.js onionified](https://github.com/cyclejs/todomvc-cycle/tree/onionify/src).
-
 # How to use onionify
 
 ### How to set up
@@ -82,8 +79,6 @@ As a consequence, state management is layered like an onion. State streams (sour
 ```
 npm install --save cycle-onionify
 ```
-
-[xstream](http://staltz.com/xstream/) v10 is a hard dependency. If you use npm v3 (you should), this should not create multiple instances of xstream in `node_modules`, since most Cycle.js packages are using xstream v10 too.
 
 Import and call onionify on your `main` function (the top-most component in your app):
 
@@ -241,60 +236,51 @@ function Parent(sources) {
 }
 ```
 
-Each object `{ count: i }` in the array can become the state object for a child component. We need to call the `Child` component with isolate, and passing a unique isolation *scope* for each. To do that, we can just use the indices of the array items.
+Each object `{ count: i }` in the array can become the state object for a child component. Onionify comes with a helper function called `makeCollection` which will utilize the array state stream to infer which children instances should be created, updated, or removed.
+
+`makeCollection` takes a couple of options and returns a normal Cycle.js component (function from sources to sinks). You should specify the child component, a unique identifier for each array element (optional), an isolation scope (optional), and how to combine all children sinks together.
+
+```js
+const List = makeCollection({
+  item: Child,
+  itemKey: (childState, index) => String(index), // or, e.g., childState.key
+  itemScope: key => key, // use `key` string as the isolation scope
+  collectSinks: instances => {
+    return {
+      onion: instances.pickMerge('onion'),
+      // ...
+    }
+  }
+})
+```
+
+In `collectSinks`, we are given an `instances` object, it is an object that represents all sinks for all children components, and has two helpers to handle them: `pickMerge` and `pickCombine`. These work like the xstream operators `merge` and `combine`, respectively, but operate on a dynamic (growing or shrinking) collection of children instances.
+
+Suppose you want to get all reducers from all children and merge them together. You use `pickMerge` that first "picks" the `onion` sink from each child sink (this is similar to lodash [get](https://lodash.com/docs/4.16.4#get) or [pick](https://lodash.com/docs/4.16.4#get)), and then merges all those onion sinks together, so the output is a simple stream of reducers.
+
+Then, you can merge the children reducers (`listSinks.onion`) with the parent reducers (if there are any), and return those from the parent:
 
 ```js
 function Parent(sources) {
   const array$ = sources.onion.state$;
 
-  const childrenSinks$ = array$.map(array =>
-    array.map((item, index) => isolate(Child, index)(sources))
-  );
+  const List = makeCollection({
+    item: Child,
+    itemKey: (childState, index) => String(index),
+    itemScope: key => key,
+    collectSinks: instances => {
+      return {
+        onion: instances.pickMerge('onion'),
+        // ...
+      }
+    }
+  });
 
-  // ...
-}
-```
-
-As you see, instead of a `childSinks`, we get a `childrenSinks$`, which is a stream that emits **arrays with sinks**. Each item in that array is a sinks object for each child instance. Item 0 is the sinks object for the first child, item 1 is the sinks object for the second child, and so forth. And as a reminder, each sinks object has multiple streams. So it's a *stream of arrays of objects with streams*.
-
-This may seem like a complex structure, but all you need to know is that `childrenSinks$` contains all sinks for all children components. Onionify provides helpers to easily handle them: custom xstream operators `pick` and `mix`.
-
-```js
-import {pick, mix} from 'cycle-onionify';
-```
-
-Suppose you want to get all reducers from all children and merge them together. First you "pick" the `onion` sink from each child sink (this is similar to lodash [get](https://lodash.com/docs/4.16.4#get) or [pick](https://lodash.com/docs/4.16.4#get)), then the outcome will be a stream of arrays, where array items are reducer streams. Second, you merge all those onion sinks together with `mix(xs.merge)`, to get a simple stream of reducers.
-
-```js
-const childrenSinks$ = array$.map(array =>
-  array.map((item, index) => isolate(Child, index)(sources))
-);
-
-const childrenReducers$ = childrenSinks$
-  .compose(pick(sinks => sinks.onion)); // or...
-//.compose(pick('onion'));
-// it does the same thing
-
-const childrenReducer$ = childrenReducers$
-  .compose(mix(xs.merge));
-```
-
-Then, you can merge the children reducers with the parent reducers (if there are any), and return those from the parent:
-
-```js
-function Parent(sources) {
-  const array$ = sources.onion.state$;
-
-  const childrenSinks$ = array$.map(array =>
-    array.map((item, index) => isolate(Child, index)(sources))
-  );
-
-  const childrenReducers$ = childrenSinks$.compose(pick('onion'));
-  const childrenReducer$ = childrenReducers$.compose(mix(xs.merge));
+  const listSinks = List(sources);
 
   // ...
 
-  const reducer$ = xs.merge(childrenReducer$, parentReducer$);
+  const reducer$ = xs.merge(listSinks.onion, parentReducer$);
 
   return {
     onion: reducer$,
@@ -303,13 +289,21 @@ function Parent(sources) {
 }
 ```
 
-This same pattern above should be used in most cases where you need to pick the onion sink from each child and merge them. However, `mix()` allows you to use not only `merge`, but also `combine`. This is useful when combining all children DOM sinks together as one array:
+As `pickMerge` is similar to `merge`, `pickCombine` is similar to `combine` and is useful when combining all children DOM sinks together as one array:
 
 ```js
-const vdom$ = childrenSinks$
-  .compose(pick('DOM'))
-  .compose(mix(xs.combine))
-  .map(itemVNodes => ul(itemVNodes));
+const List = makeCollection({
+  item: Child,
+  itemKey: (childState, index) => String(index),
+  itemScope: key => key,
+  collectSinks: instances => {
+    return {
+      onion: instances.pickMerge('onion'),
+      DOM: instances.pickCombine('DOM')
+        .map(itemVNodes => ul(itemVNodes))
+    }
+  }
+});
 ```
 
 Depending on the type of sink, you may want to use the `merge` strategy or the `combine` strategy. Usually `merge` is used for reducers and `combine` for Virtual DOM streams. In the more general case, `merge` is for events and `combine` is for values-over-time (["signals"](https://github.com/cyclejs/cyclejs/wiki/Understanding-Signals-vs-Events)).
@@ -421,28 +415,14 @@ Cycle.run(wrappedMain, drivers);
 
 ### How to use it with TypeScript
 
-We recommend that you export these types for every component: `Action`, `State`, `Reducer`, `Source`, `Sinks`. Below is an example of what these types usually look like:
+We recommend that you export the type `State` for every component. Below is an example of what this usually looks like:
 
 ```typescript
-export interface BleshAction {
-  type: 'BLESH';
-  payload: number;
-};
-
-export interface BloshAction {
-  type: 'BLOSH';
-  payload: string;
-};
-
-export type Action = BleshAction | BloshAction;
-
 export interface State {
   count: number;
   age: number;
   title: string;
 }
-
-export type Reducer = (prev?: State) => State | undefined;
 
 export interface Sources {
   DOM: DOMSource;
@@ -465,7 +445,7 @@ The `StateSource` type comes from onionify and you can import it as such:
 import {StateSource} from 'cycle-onionify';
 ```
 
-Then, you can compose nested state types:
+Then, you can compose nested state types in the parent component file:
 
 ```typescript
 import {State as ChildState} from './Child';
@@ -489,7 +469,7 @@ That said, state vs props management is too hard to master with Cycle.js (and al
 
 ### Does it support [RxJS](http://reactivex.io/rxjs/) or [most.js](https://github.com/cujojs/most)?
 
-No, not yet. It only supports xstream. However, for the time being, you could try to implement onionify on your own, since it's just less than 100 lines of code. In the long run, we want to build [Cycle Unified](https://github.com/cyclejs/cyclejs/issues/425) which could allow running this tool with RxJS or most.js.
+Yes, as long as you are using Cycle.js and the *RxJS Run* package (or Most.js Run).
 
 ### Does it support [Immutable.js](https://facebook.github.io/immutable-js/)?
 
@@ -520,27 +500,21 @@ function main(sources) {
 }
 ```
 
-### How does this work?
-
-[Read the source](https://github.com/staltz/cycle-onionify/blob/master/src/index.ts). It's less than 150 lines of code, and probably quicker to read the source than to explain it in words.
-
 ### Why is this not official in Cycle.js?
 
 If all goes well, eventually this will be an official Cycle.js practice. For now, we want to experiment in the open, collect feedback, and make sure that this is a solid pattern. There are [other approaches](https://github.com/cyclejs/cyclejs/issues/312) to state management in Cycle.js and we want to make sure the most popular one ends up being the official one.
-
-### How does this compare to [Stanga](https://github.com/milankinen/stanga)?
-
-- Stanga is a "driver". Onionify is a component wrapper function.
-- Stanga defines initial state as a separate argument. Onionify defines initial state as a reducer.
-- Stanga uses helper functions and lenses for sub-states. Onionify leverages `@cycle/isolate`.
-- Stanga uses unique IDs for managing dynamic lists. Onionify does not.
 
 ### How does this compare to [Redux](http://redux.js.org/)?
 
 - Redux is not fractal (and has a visible global entity, the Store). Onionify is fractal (and has an invisible global entity).
 - Redux defines initial state in the argument for a reducer. Onionify defines initial state as a reducer itself.
 - Redux reducers have two arguments `(previousState, action) => newState`. Onionify reducers have one argument `(previousState) => newState` (the action is given from the closure).
-- Redux uses unique IDs for managing dynamic lists. Onionify does not.
+
+### How does this compare to [Stanga](https://github.com/milankinen/stanga)?
+
+- Stanga is a "driver". Onionify is a component wrapper function.
+- Stanga defines initial state as a separate argument. Onionify defines initial state as a reducer.
+- Stanga uses helper functions and lenses for sub-states. Onionify leverages `@cycle/isolate`.
 
 ### How does this compare to the [Elm architecture](https://guide.elm-lang.org/architecture/index.html)?
 
@@ -548,10 +522,8 @@ If all goes well, eventually this will be an official Cycle.js practice. For now
 - Elm reducers have two arguments `Msg -> Model -> ( Model, Cmd Msg )`. Onionify reducers have one argument `(previousState) => newState`.
 - Elm child reducers are explicitly composed and nested in parent reducers. Onionify child reducers are isolated with `@cycle/isolate` and merged with parent reducers.
 - Elm child actions are nested in parent actions. In onionify, actions in child components are unrelated to parent actions.
-- Elm architecture uses unique IDs for managing dynamic lists. Onionify does not.
 
 ### How does this compare to ClojureScript [Om](https://github.com/omcljs/om)?
 
 - Om [Cursors](https://github.com/omcljs/om/wiki/Cursors) are very similar in purpose to `onionify` + `isolate`.
 - Om cursors are updated with imperative `transact!`. Onionify state is updated with declarative reducer functions.
-- Om uses unique IDs for managing dynamic lists. Onionify does not.
