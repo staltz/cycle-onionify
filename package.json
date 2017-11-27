@@ -26,6 +26,6 @@
     "ava": "0.18.x",
     "rxjs": "5.1.0",
     "most": "1.5.0",
-    "typescript": "2.3.2"
+    "typescript": "2.5.x"
   }
 }
