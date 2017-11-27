@@ -96,7 +96,7 @@ test('StateSource.state$ never emits if no sink reducer was emitted', t => {
 });
 
 test('reducers receive previous state', t => {
-  t.plan(7);
+  t.plan(6);
 
   function main(sources) {
     t.truthy(sources.onion);
@@ -106,7 +106,7 @@ test('reducers receive previous state', t => {
     sources.onion.state$.addListener({
       next(x) { t.is(x.count, expected.shift()); },
       error(e) { t.fail(e); },
-      complete() { t.is(expected.length, 0); },
+      complete() { },
     });
 
     const reducer$ = xs.of(
@@ -573,6 +573,33 @@ test('should work with an isolated child component on an array entry', t => {
   const wrapped = onionify(main);
   wrapped({});
 });
+
+test('not complete reducer stream neither source state$', t => {
+  t.plan(3);
+
+  function main(sources) {
+    t.truthy(sources.onion);
+    t.truthy(sources.onion.state$);
+    const expected = [[3,5,6]];
+    sources.onion.state$.addListener({
+      next(x) { t.deepEqual(x, expected.shift()); },
+      error(e) { t.fail(e); },
+      complete() { t.fail('should not complete'); },
+    });
+
+    const reducer$ = xs.of(function initReducer(prevState) {
+      return [3,5,6];
+    });
+
+    return {
+      onion: reducer$,
+    };
+  }
+
+  const wrapped = onionify(main);
+  wrapped({});
+});
+
 
 test.cb('should work with makeCollection() and an isolated list children', t => {
   t.plan(6);

@@ -1,4 +1,5 @@
 import xs, {Stream} from 'xstream';
+import concat from 'xstream/extra/concat';
 import {MainFn, Reducer} from './types';
 import {StateSource} from './StateSource';
 
@@ -42,7 +43,10 @@ export function onionify<T, So extends OSo<T>, Si extends OSi<T>>(
     sources[name] = new StateSource<any>(state$, name);
     const sinks = main(sources as So);
     if (sinks[name]) {
-      const stream$ = xs.fromObservable<Reducer<T>>(sinks[name]);
+      const stream$ = concat(
+        xs.fromObservable<Reducer<T>>(sinks[name]),
+        xs.never(),
+      );
       reducerMimic$.imitate(stream$);
     }
     return sinks;
