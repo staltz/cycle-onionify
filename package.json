@@ -11,7 +11,7 @@
   "repository": "https://github.com/staltz/cycle-onionify",
   "scripts": {
     "pretest": "npm run lib",
-    "test": "ava --timeout=2000",
+    "test": "ava --timeout=4000",
     "prelib": "mkdir -p lib",
     "lib": "tsc",
     "prepublishOnly": "npm run lib"
