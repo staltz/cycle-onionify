@@ -51,15 +51,15 @@ test('inner function receives StateSource under sources.whatever', t => {
   wrapped({});
 });
 
-test('inner function takes StateSource, sends reducers to sink', t => {
+test.cb('inner function takes StateSource, sends reducers to sink', t => {
   t.plan(3);
 
   function main(sources) {
     t.truthy(sources.onion);
     t.truthy(sources.onion.state$);
     sources.onion.state$.addListener({
-      next(x) { t.is(x.foo, 'bar'); },
-      error(e) { t.fail(e); },
+      next(x) { t.is(x.foo, 'bar');},
+      error(e) {},
       complete() {},
     });
 
@@ -72,9 +72,10 @@ test('inner function takes StateSource, sends reducers to sink', t => {
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
-test('StateSource.state$ never emits if no sink reducer was emitted', t => {
+test.cb('StateSource.state$ never emits if no sink reducer was emitted', t => {
   t.plan(2);
 
   function main(sources) {
@@ -93,9 +94,10 @@ test('StateSource.state$ never emits if no sink reducer was emitted', t => {
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
-test('reducers receive previous state', t => {
+test.cb('reducers receive previous state', t => {
   t.plan(6);
 
   function main(sources) {
@@ -123,9 +125,10 @@ test('reducers receive previous state', t => {
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
-test('top level default reducer sees undefined prev state', t => {
+test.cb('top level default reducer sees undefined prev state', t => {
   t.plan(4);
 
   function main(sources) {
@@ -151,9 +154,10 @@ test('top level default reducer sees undefined prev state', t => {
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
-test('child component default reducer can get state from parent', t => {
+test.cb('child component default reducer can get state from parent', t => {
   t.plan(3);
 
   function child(sources) {
@@ -193,9 +197,10 @@ test('child component default reducer can get state from parent', t => {
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
-test('child component default reducer can set default state', t => {
+test.cb('child component default reducer can set default state', t => {
   t.plan(3);
 
   function child(sources) {
@@ -235,9 +240,10 @@ test('child component default reducer can set default state', t => {
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
-test('child component can be isolated with a lens object as scope', t => {
+test.cb('child component can be isolated with a lens object as scope', t => {
   t.plan(6);
 
   function child(sources) {
@@ -295,9 +301,10 @@ test('child component can be isolated with a lens object as scope', t => {
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
-test('child component also gets undefined if parent has not initialized state', t => {
+test.cb('child component also gets undefined if parent has not initialized state', t => {
   t.plan(1);
 
   function child(sources) {
@@ -332,9 +339,10 @@ test('child component also gets undefined if parent has not initialized state', 
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
-test('should work with a manually isolated child component', t => {
+test.cb('should work with a manually isolated child component', t => {
   t.plan(7);
 
   function child(sources) {
@@ -378,9 +386,10 @@ test('should work with a manually isolated child component', t => {
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
-test('should work with an isolated child component', t => {
+test.cb('should work with an isolated child component', t => {
   t.plan(9);
 
   function child(sources) {
@@ -426,9 +435,10 @@ test('should work with an isolated child component', t => {
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
-test('should work with an isolated child component and falsy values', t => {
+test.cb('should work with an isolated child component and falsy values', t => {
   t.plan(11);
 
   function child(sources) {
@@ -475,9 +485,10 @@ test('should work with an isolated child component and falsy values', t => {
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
-test('should work with an isolated child component on an array subtree', t => {
+test.cb('should work with an isolated child component on an array subtree', t => {
   t.plan(9);
 
   function child(sources) {
@@ -523,9 +534,10 @@ test('should work with an isolated child component on an array subtree', t => {
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
-test('should work with an isolated child component on an array entry', t => {
+test.cb('should work with an isolated child component on an array entry', t => {
   t.plan(11);
 
   function secondEntry(sources) {
@@ -572,9 +584,10 @@ test('should work with an isolated child component on an array entry', t => {
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
-test('not complete reducer stream neither source state$', t => {
+test.cb('not complete reducer stream neither source state$', t => {
   t.plan(3);
 
   function main(sources) {
@@ -598,6 +611,7 @@ test('not complete reducer stream neither source state$', t => {
 
   const wrapped = onionify(main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
 
@@ -645,7 +659,6 @@ test.cb('should work with makeCollection() and an isolated list children', t => 
         t.deepEqual(x.list, expected.shift());
         if (expected.length === 0) {
           t.pass();
-          t.end();
         }
       },
       error(e) {
@@ -663,11 +676,11 @@ test.cb('should work with makeCollection() and an isolated list children', t => 
       return { list: [{key: 'a', val: 3}] };
     });
 
-    const addReducer$ = xs.of(function addB(prev) {
+    const addReducer$ = xs.merge(xs.of(function addB(prev) {
       return {list: prev.list.concat({key: 'b', val: null})};
-    }, function addC(prev) {
+    }).compose(delay(100)), xs.of(function addC(prev) {
       return {list: prev.list.concat({key: 'c', val: 27})};
-    }).compose(delay(100));
+    }).compose(delay(200)))
 
     const parentReducer$ = xs.merge(initReducer$, addReducer$)
     const reducer$ = xs.merge(parentReducer$, childReducer$);
@@ -679,6 +692,7 @@ test.cb('should work with makeCollection() and an isolated list children', t => 
 
   const wrapped = onionify(Main);
   wrapped({});
+  setTimeout(() => t.end(), 300)
 });
 
 test.cb('should work with makeCollection() and a custom item key', t => {
@@ -724,7 +738,6 @@ test.cb('should work with makeCollection() and a custom item key', t => {
         t.deepEqual(x.list, expected.shift());
         if (expected.length === 0) {
           t.pass();
-          t.end();
         }
       },
       error(e) {
@@ -742,11 +755,11 @@ test.cb('should work with makeCollection() and a custom item key', t => {
       return { list: [{id: 'a', val: 3}] };
     });
 
-    const addReducer$ = xs.of(function addB(prev) {
+    const addReducer$ = xs.merge(xs.of(function addB(prev) {
       return {list: prev.list.concat({id: 'b', val: null})};
-    }, function addC(prev) {
+    }).compose(delay(100)), xs.of(function addC(prev) {
       return {list: prev.list.concat({id: 'c', val: 27})};
-    }).compose(delay(100));
+    }).compose(delay(200)))
 
     const parentReducer$ = xs.merge(initReducer$, addReducer$)
     const reducer$ = xs.merge(parentReducer$, childReducer$);
@@ -758,6 +771,7 @@ test.cb('should work with makeCollection() and a custom item key', t => {
 
   const wrapped = onionify(Main);
   wrapped({});
+  setTimeout(() => t.end(), 300)
 });
 
 test.cb('should correctly accumulate over time even without itemKey', t => {
@@ -808,7 +822,6 @@ test.cb('should correctly accumulate over time even without itemKey', t => {
         t.deepEqual(x.list, expected.shift());
         if (expected.length === 0) {
           t.pass();
-          t.end();
         }
       },
       error(e) {
@@ -840,6 +853,7 @@ test.cb('should correctly accumulate over time even without itemKey', t => {
 
   const wrapped = onionify(Main);
   wrapped({});
+  setTimeout(() => t.end(), 200)
 });
 
 test.cb('should work with makeCollection() on an object, not an array', t => {
@@ -877,7 +891,6 @@ test.cb('should work with makeCollection() on an object, not an array', t => {
         t.deepEqual(x.wrap, expected.shift());
         if (expected.length === 0) {
           t.pass();
-          t.end();
         }
       },
       error(e) {
@@ -904,6 +917,7 @@ test.cb('should work with makeCollection() on an object, not an array', t => {
 
   const wrapped = onionify(Main);
   wrapped({});
+  setImmediate(() => t.end())
 });
 
 test('should not throw if pickMerge() or pickCombine() are called with name that item does not use', t => {
