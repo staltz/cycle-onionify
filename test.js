@@ -905,3 +905,46 @@ test.cb('should work with makeCollection() on an object, not an array', t => {
   const wrapped = onionify(Main);
   wrapped({});
 });
+
+test('should not throw if pickMerge() or pickCombine() are called with name that item does not use', t => {
+  function Child(sources) {
+    return {
+        onion: xs.of({})
+    };
+  }
+
+  const List = makeCollection({
+    item: Child,
+    itemKey: s => s.key,
+    itemScope: key => key,
+    collectSinks: instances => ({
+      DOM: instances.pickCombine('DOM').map(arr => arr[0]),
+      HTTP: instances.pickMerge('HTTP')
+    }),
+  })
+
+  function Main(sources) {
+    const childSinks = isolate(List, 'list')(sources);
+
+    const initReducer$ = xs.of(function initReducer(prevState) {
+      return { list: [{key: 'a', val: 3}] };
+    });
+
+    childSinks.DOM.subscribe({
+        next: x => {}
+    });
+
+    childSinks.HTTP.subscribe({
+        next: x => {}
+    });
+
+   return {
+      onion: initReducer$,
+    };
+  }
+
+  const wrapped = onionify(Main);
+  wrapped({});
+  t.pass();
+});
+
