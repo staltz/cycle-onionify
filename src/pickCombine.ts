@@ -121,7 +121,7 @@ class PickCombine<Si, R> implements Operator<InternalInstances<Si>, Array<R>> {
     for (let i = 0; i < n; ++i) {
       const sinks = arrSinks[i];
       const key = sinks._key as any as string;
-      const sink: Stream<any> = xs.fromObservable(sinks[sel]);
+      const sink: Stream<any> = xs.fromObservable(sinks[sel] || xs.never());
       if (!ils.has(key)) {
         ils.set(key, new PickCombineListener(key, out, this, sink));
         sink._add(ils.get(key) as PickCombineListener<Si, R>);
