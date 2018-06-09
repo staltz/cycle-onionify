@@ -1,6 +1,7 @@
 dependencies:
   '@cycle/isolate': 3.3.0
   '@cycle/run': 4.1.0
+  quicktask: 1.0.1
   xstream: 11.4.0
 devDependencies:
   '@cycle/rxjs-run': 7.0.0
@@ -2191,6 +2192,10 @@ packages:
     dev: true
     resolution:
       integrity: sha1-8FKijacOYYkX7wqKw0wa5aaChrM=
+  /quicktask/1.0.1:
+    dev: false
+    resolution:
+      integrity: sha512-+jhR01aSsi6Iw9wbYumKusRK72QK1ub2oE0kOnRyMkMdD/rXMMGW/TVl5edjcLjuuIKP1ezkr+xQzUMD5/4JHw==
   /randomatic/3.0.0:
     dependencies:
       is-number: 4.0.0
@@ -2790,6 +2795,7 @@ specifiers:
   '@cycle/rxjs-run': '7.0'
   ava: 0.18.x
   most: 1.5.0
+  quicktask: 1.0.1
   rxjs: 5.1.0
   typescript: 2.5.x
   xstream: '>=10'

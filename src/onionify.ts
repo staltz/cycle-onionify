@@ -2,9 +2,9 @@ import xs, {Stream} from 'xstream';
 import concat from 'xstream/extra/concat';
 import {MainFn, Reducer} from './types';
 import {StateSource} from './StateSource';
-import microtask from './microtask';
+import microtask from 'quicktask';
 
-const scheduleMicrotask = microtask();
+const schedule = microtask();
 
 /**
  * While we are waiting for keyof subtraction to land in TypeScript,
@@ -51,9 +51,9 @@ export function onionify<T, So extends OSo<T>, Si extends OSi<T>>(
         xs.never(),
       );
       stream$.subscribe({
-        next: i => scheduleMicrotask(() => reducerMimic$._n(i)),
-        error: err => scheduleMicrotask(() => reducerMimic$._e(err)),
-        complete: () => scheduleMicrotask(() => reducerMimic$._c()),
+        next: i => schedule(() => reducerMimic$._n(i)),
+        error: err => schedule(() => reducerMimic$._e(err)),
+        complete: () => schedule(() => reducerMimic$._c()),
       })
     }
     return sinks;
