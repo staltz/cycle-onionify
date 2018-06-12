@@ -1,2 +1,5 @@
 .vscode
+/examples
 node_modules
+.gitignore
+/shrinkwrap.yaml
