@@ -920,7 +920,7 @@ test.cb('should work with makeCollection() on an object, not an array', t => {
   setImmediate(() => t.end())
 });
 
-test('should not throw if pickMerge() or pickCombine() are called with name that item does not use', t => {
+test('should not throw if pickMerge() is called with name that item does not use', t => {
   function Child(sources) {
     return {
         onion: xs.of({})
@@ -932,7 +932,6 @@ test('should not throw if pickMerge() or pickCombine() are called with name that
     itemKey: s => s.key,
     itemScope: key => key,
     collectSinks: instances => ({
-      DOM: instances.pickCombine('DOM').map(arr => arr[0]),
       HTTP: instances.pickMerge('HTTP')
     }),
   })
@@ -944,15 +943,11 @@ test('should not throw if pickMerge() or pickCombine() are called with name that
       return { list: [{key: 'a', val: 3}] };
     });
 
-    childSinks.DOM.subscribe({
-        next: x => {}
-    });
-
     childSinks.HTTP.subscribe({
         next: x => {}
     });
 
-   return {
+    return {
       onion: initReducer$,
     };
   }
@@ -961,4 +956,3 @@ test('should not throw if pickMerge() or pickCombine() are called with name that
   wrapped({});
   t.pass();
 });
-
