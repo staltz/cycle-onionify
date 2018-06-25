@@ -19,7 +19,7 @@
   "dependencies": {
     "@cycle/run": "*",
     "@cycle/isolate": ">=3",
-    "quicktask": "1.0.1",
+    "quicktask": "1.1.0",
     "xstream": ">=10"
   },
   "devDependencies": {

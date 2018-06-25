@@ -917,7 +917,7 @@ test.cb('should work with makeCollection() on an object, not an array', t => {
 
   const wrapped = onionify(Main);
   wrapped({});
-  setImmediate(() => t.end())
+  setTimeout(() => t.end(), 60)
 });
 
 test('should not throw if pickMerge() is called with name that item does not use', t => {
