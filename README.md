@@ -1,5 +1,7 @@
 # Cycle.js onionify
 
+## DEPRECATED. This package still works as is, but it has been "officialized" into Cycle.js monorepo as [@cycle/state](https://cycle.js.org/api/state.html)
+
 Augments your [Cycle.js](https://cycle.js.org) main function with onion-shaped state management and a single state atom.
 
 - **Simple:** all state lives in one place only
